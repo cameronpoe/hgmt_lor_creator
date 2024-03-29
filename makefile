@@ -12,5 +12,3 @@ hgmt_lor_creator: hgmt_lor_creator.o vector_ops.o
 
 debug_hgmt_lor_creator: hgmt_lor_creator.c vector_ops.o
 	$(CC) -o debug_hgmt_lor_creator $^ $(CDBGFLAGS)
-
-
