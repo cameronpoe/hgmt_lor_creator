@@ -1,0 +1,50 @@
+b:Ts/UseQt              = "False"
+sv:Ph/Default/Modules   = 1 "g4em-standard_opt4"
+b:Ge/CheckForOverlaps   = "True"
+b:Ts/PauseBeforeQuit    = "False"
+i:Ts/NumberOfThreads    = -2
+i:Ts/Seed = 5
+
+s:Gr/ViewA/Type = "OpenGL"
+b:Gr/ViewA/IncludeAxes = "True"
+b:Gr/ViewA/Active = "False"
+
+d:Ge/World/HLX       = 3.0 m
+d:Ge/World/HLY       = 3.0 m
+d:Ge/World/HLZ       = 3.0 m
+s:Ge/World/Material    = "Vacuum"
+b:Ge/World/Invisible = "True"
+
+s:Ge/ActiveSphere/Type          = "TsSphere"
+s:Ge/ActiveSphere/Parent        = "World"
+s:Ge/ActiveSphere/Material      = "G4_WATER"
+d:Ge/ActiveSphere/RMax          = 1. mm
+d:Ge/ActiveSphere/TransX      = 0.0 m
+d:Ge/ActiveSphere/TransY      = 0.0 m
+d:Ge/ActiveSphere/TransZ      = 0.0 m
+
+s:So/PositronSource/Type        = "Volumetric"
+s:So/PositronSource/Component   = "ActiveSphere"
+s:So/PositronSource/ActiveMaterial  = "G4_WATER"
+s:So/PositronSource/BeamParticle = "e+"
+d:So/PositronSource/BeamEnergy = 0 keV
+ic:So/PositronSource/NumberOfHistoriesInRun = 1000000
+ic:So/PositronSource/MaxNumberOfPointsToSample = 1000000	
+                            
+b:Ge/Cylinder/IsParallel       = "True"
+s:Ge/Cylinder/Type             = "TsCylinder"
+s:Ge/Cylinder/Parent           = "World"
+#s:Ge/Cylinder/Material         = "G4_W"
+d:Ge/Cylinder/RMin             = 45.0 cm
+d:Ge/Cylinder/RMax             = 75.0 cm
+d:Ge/Cylinder/HL               = 1. m
+s:Ge/Cylinder/DrawingStyle     = "FullWireFrame"
+
+s:Sc/GammaDetector/Surface      = "Cylinder/InnerCurvedSurface"
+s:Sc/GammaDetector/Quantity     = "PhaseSpace"
+b:Sc/GammaDetector/IncludeTimeOfFlight = "True"
+b:Sc/GammaDetector/IncludeRunID = "True"
+b:Sc/GammaDetector/IncludeEventID = "True"
+b:Sc/GammaDetector/IncludeTrackID = "True"
+s:Sc/GammaDetector/OutputType   = "ASCII" 
+s:Sc/GammaDetector/IfOutputFileAlreadyExists  = "Overwrite"

@@ -1,0 +1,53 @@
+b:Ts/UseQt              = "False"
+sv:Ph/Default/Modules   = 1 "g4em-standard_opt4"
+b:Ge/CheckForOverlaps   = "True"
+b:Ts/PauseBeforeQuit    = "False"
+i:Ts/NumberOfThreads    = -2
+i:Ts/Seed = 5
+
+s:Gr/ViewA/Type = "OpenGL"
+b:Gr/ViewA/IncludeAxes = "True"
+b:Gr/ViewA/Active = "False"
+
+d:Ge/World/HLX       = 10.0 m
+d:Ge/World/HLY       = 10.0 m
+d:Ge/World/HLZ       = 10.0 m
+s:Ge/World/Material    = "Vacuum"
+b:Ge/World/Invisible = "True"
+
+s:Ge/AirBox/Material    = "Air"
+s:Ge/AirBox/Type      = "TsBox"
+d:Ge/AirBox/HLX       = 10.0 m
+d:Ge/AirBox/HLY       = 10.0 m
+d:Ge/AirBox/HLZ       = 10.0 m
+s:Ge/AirBox/Parent    = "World"
+b:Ge/AirBox/Invisible = "True"
+
+b:Ge/DetectorVolume/IsParallel       = "True"
+s:Ge/DetectorVolume/Type        = "TsCylinder"
+s:Ge/DetectorVolume/Parent	= "World"
+d:Ge/DetectorVolume/HL          = 1 m
+d:Ge/DetectorVolume/RMin        = 0.45 m
+d:Ge/DetectorVolume/RMax        = 0.75 m
+
+s:Sc/GammaDetector/Surface      = "DetectorVolume/InnerCurvedSurface"
+s:Sc/GammaDetector/Quantity     = "PhaseSpace"
+b:Sc/GammaDetector/IncludeTimeOfFlight = "True"
+b:Sc/GammaDetector/IncludeRunID = "True"
+b:Sc/GammaDetector/IncludeEventID = "True"
+b:Sc/GammaDetector/IncludeTrackID = "True"
+s:Sc/GammaDetector/OutputType   = "ASCII" 
+s:Sc/GammaDetector/IfOutputFileAlreadyExists  = "Overwrite"
+
+# includeFile = xcat_activity_phantom.topas
+# s:Ge/Patient/Parent   = "AirBox"
+# d:Ge/Patient/TransX   = 0. m
+# d:Ge/Patient/TransY   = 0. m
+# d:Ge/Patient/TransZ   = 0. m
+# d:Ge/Patient/RotX     = 0. deg
+# d:Ge/Patient/RotY     = 0. deg
+# d:Ge/Patient/RotZ     = 0 deg
+
+# d:Tf/TimelineStart = 0 ms
+# i:Tf/NumberOfSequentialTimes = 3
+# d:Tf/TimelineEnd = 30 ms
