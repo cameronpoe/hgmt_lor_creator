@@ -4,9 +4,9 @@
 #include <stdio.h>
 
 typedef struct vec3_double {
-	double x;
-	double y;
-	double z;
+  double x;
+  double y;
+  double z;
 } vec3d;
 
 // defines a new 3-vector
@@ -38,7 +38,7 @@ double vec_dist(vec3d a, vec3d b);
 // vec3d vec_copy(vec3d a);
 
 // prints a vector as the three values
-void vec_print(vec3d a, FILE* output);
+void vec_print(vec3d a, FILE *output);
 
 // normalizes the given vector, returns as a new vector structure
 vec3d vec_norm(vec3d a);
@@ -52,4 +52,6 @@ vec3d vec_projection(vec3d a, vec3d b);
 // rejects a from b (i.e. projects a onto the plane perpendicular to b)
 vec3d vec_rejection(vec3d a, vec3d b);
 
+// gives a random number following a guassian distribution
+double gaussian(double sd, int num_additions);
 #endif
