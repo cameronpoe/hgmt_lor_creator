@@ -119,14 +119,3 @@ vec3d vec_rejection(vec3d a, vec3d b) {
   vec3d projection = vec_projection(a, b);
   return vec_sub(a, projection);
 }
-// gives a random number following a guassian distribution
-double gaussian(double sd, int num_additions) {
-  double rand = 0.0;
-  for (int i = 0; i < num_additions; i++) {
-    rand += drand48();
-  }
-  rand -= (double)num_additions / 2.0;
-  rand *= sqrt(12.0) * sd;
-  rand /= sqrt((double)num_additions);
-  return rand;
-}

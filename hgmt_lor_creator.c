@@ -5,6 +5,7 @@
 #include <string.h>
 
 // including custom files
+#include "helper_functions.h"
 #include "hgmt_event.h"
 #include "vector_ops.h"
 
@@ -19,8 +20,10 @@
 #define SPC_UNC 0.1       // cm
 #define TIME_UNC 0.042463 // ns, sigma (0.100 ns FWHM)
 #define DIAGNOSTIC_TOTAL_GAMMAS_DETECTED 1
+#define MAX_THREADS 7
 double eff_by_ang[ROWS][COLS];
 uint gammas_entered_scanner = 0;
+uint binary = 0;
 uint gamma_pairs_entered_scanner = 0;
 uint diagnostic_single_gammas_detected = 0;
 uint gamma_pairs_detected = 0;
@@ -163,29 +166,45 @@ event *read_event(FILE *source) {
   int event_id;
   int track_id;
 
-  int worked;
-
-  // reads in position as long float
-  worked = fscanf(source, "%lf", &x);
-  worked = fscanf(source, "%lf", &y);
-  worked = fscanf(source, "%lf", &z);
-  // reads in cosines as long floats
-  worked = fscanf(source, "%lf", &dir_cos_x);
-  worked = fscanf(source, "%lf", &dir_cos_y);
-  // adds energy and weight as long floats
-  worked = fscanf(source, "%lf", &energy);
-  worked = fscanf(source, "%lf", &weight);
-  // adds particle ID as an int (all PIDs are ints per PDG)
-  worked = fscanf(source, "%i", &particle);
-  // adds flags as uints (since they're 0 or 1)
-  worked = fscanf(source, "%u", &dir_cos_neg);
-  worked = fscanf(source, "%u", &first_in_hist);
-  // adds tof as long float
-  worked = fscanf(source, "%lf", &tof);
-  // adds identifying info as uints
-  worked = fscanf(source, "%u", &run_id);
-  worked = fscanf(source, "%u", &event_id);
-  worked = fscanf(source, "%u", &track_id);
+  int worked = 0;
+  if (binary) {
+    worked += fread(&x, sizeof(double), 1, source);
+    worked += fread(&y, sizeof(double), 1, source);
+    worked += fread(&z, sizeof(double), 1, source);
+    worked += fread(&dir_cos_x, sizeof(double), 1, source);
+    worked += fread(&dir_cos_y, sizeof(double), 1, source);
+    worked += fread(&energy, sizeof(double), 1, source);
+    worked += fread(&weight, sizeof(double), 1, source);
+    worked += fread(&particle, sizeof(int), 1, source);
+    worked += fread(&dir_cos_neg, sizeof(uint), 1, source);
+    worked += fread(&first_in_hist, sizeof(uint), 1, source);
+    worked += fread(&tof, sizeof(double), 1, source);
+    worked += fread(&run_id, sizeof(uint), 1, source);
+    worked += fread(&event_id, sizeof(uint), 1, source);
+    worked += fread(&track_id, sizeof(uint), 1, source);
+  } else {
+    // reads in position as long float
+    worked = fscanf(source, "%lf", &x);
+    worked = fscanf(source, "%lf", &y);
+    worked = fscanf(source, "%lf", &z);
+    // reads in cosines as long floats
+    worked = fscanf(source, "%lf", &dir_cos_x);
+    worked = fscanf(source, "%lf", &dir_cos_y);
+    // adds energy and weight as long floats
+    worked = fscanf(source, "%lf", &energy);
+    worked = fscanf(source, "%lf", &weight);
+    // adds particle ID as an int (all PIDs are ints per PDG)
+    worked = fscanf(source, "%i", &particle);
+    // adds flags as uints (since they're 0 or 1)
+    worked = fscanf(source, "%u", &dir_cos_neg);
+    worked = fscanf(source, "%u", &first_in_hist);
+    // adds tof as long float
+    worked = fscanf(source, "%lf", &tof);
+    // adds identifying info as uints
+    worked = fscanf(source, "%u", &run_id);
+    worked = fscanf(source, "%u", &event_id);
+    worked = fscanf(source, "%u", &track_id);
+  }
 
   if (worked == EOF) {
     return NULL;
@@ -477,18 +496,23 @@ void print_lor(FILE *output, lor *lor) {
 }
 
 int main(int argc, char **argv) {
-
+  char **flags = get_flags(argc, argv);
+  char **args = get_args(argc, argv);
   // defines the help function and how to call it (by using -h or --help)
-  if (argc == 2 && (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))) {
-    printf("hgm_lor_creator\n");
-    printf("Usage: ./hgm_lor_creator [TOPAS_file_location.phsp] "
-           "[efficiency_table_location.csv] [LOR_output_location]\n");
-    printf("\nStartup:\n   -h,   --help\t\tprint this help\n");
-    exit(0);
+  for (int i = 0; i < num_flags(argc, argv); i++) {
+    if (strcmp(flags[i], "-h") == 0) {
+      printf("Usage: ./hgm_lor_creator [TOPAS_file_location.phsp] "
+             "[efficiency_table_location.csv] [LOR_output_location]\n");
+      printf("-h: print this help\n");
+      printf("-b: read phsp in binary format\n");
+      exit(0);
+    }
+    if (strcmp(flags[i], "-b") == 0) {
+      binary = 1;
+    }
   }
-
   // checks to make sure you have correct number of args
-  if (argc != 4) {
+  if (num_args(argc, argv) != 3) {
     printf("Incorrect number of arguments, three arguments required.\n");
     printf("Use the -h or --help command to get options.\n\n");
     exit(1);
@@ -496,15 +520,15 @@ int main(int argc, char **argv) {
 
   // reads in efficiency table into 2D array called eff_by_ang
   printf("HGM LOR Creator\n\nLoading in '%s' as efficiencies table...\n",
-         argv[0]);
-  FILE *eff_table_file = fopen(argv[2], "r");
+         args[1]);
+  FILE *eff_table_file = fopen(args[1], "r");
   int eff_file_read = read_eff(eff_table_file);
   fclose(eff_table_file);
   printf("Done!\n\n");
 
   // opens up a .lor file to output each LOR into
-  char *lor_file_loc = (char *)malloc(sizeof(char) * (strlen(argv[2]) + 10));
-  strcpy(lor_file_loc, argv[3]);
+  char *lor_file_loc = (char *)malloc(sizeof(char) * (strlen(args[2]) + 10));
+  strcpy(lor_file_loc, args[2]);
   lor_file_loc = strcat(lor_file_loc, ".lor");
   FILE *lor_output = fopen(lor_file_loc, "w");
   if (lor_output == NULL) {
@@ -512,13 +536,14 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  FILE *phsp_file = fopen(argv[1], "r");
+  FILE *phsp_file = fopen(args[0], "r");
 
   printf("Constructing the LORs...\n");
 
   event *pair_of_events = get_event_pair(phsp_file, read_event);
 
   while (pair_of_events != NULL) {
+
     // prints a status update every 1,000,000 gammas we read through
     // (effectively the line number the code is on)
     if ((gammas_entered_scanner / 1000000) * 1000000 ==

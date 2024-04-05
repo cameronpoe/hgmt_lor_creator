@@ -51,7 +51,4 @@ vec3d vec_projection(vec3d a, vec3d b);
 
 // rejects a from b (i.e. projects a onto the plane perpendicular to b)
 vec3d vec_rejection(vec3d a, vec3d b);
-
-// gives a random number following a guassian distribution
-double gaussian(double sd, int num_additions);
 #endif
