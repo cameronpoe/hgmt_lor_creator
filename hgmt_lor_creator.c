@@ -8,6 +8,7 @@
 #include "helper_functions.h"
 #include "hgmt_event.h"
 #include "vector_ops.h"
+#include <stdbool.h>
 
 // global variables
 #define ROWS 31
@@ -149,36 +150,36 @@ void test_eff_array(float eff_table[ROWS][COLS]) {
 
 event *read_event(FILE *source) {
 
-  double x;          // 1: Position X [cm]
-  double y;          // 2: Position Y [cm]
-  double z;          // 3: Position Z [cm]
-  double dir_cos_x;  // 4: Direction Cosine X
-  double dir_cos_y;  // 5: Direction Cosine Y
-  double energy;     // 6: Energy [MeV]
-  double weight;     // 7: Weight
-  int particle;      // 8: Particle Type (in PDG Format)
-  int dir_cos_neg;   // 9: Flag to tell if Third Direction Cosine is Negative (1
-                     // means true)
-  int first_in_hist; // 10: Flag to tell if this is the First Scored Particle
-                     // from this History (1 means true)
-  double tof;        // 11: Time of Flight [ns]
-  int run_id;
-  int event_id;
-  int track_id;
+  float x;            // 1: Position X [cm]
+  float y;            // 2: Position Y [cm]
+  float z;            // 3: Position Z [cm]
+  float dir_cos_x;    // 4: Direction Cosine X
+  float dir_cos_y;    // 5: Direction Cosine Y
+  float energy;       // 6: Energy [MeV]
+  float weight;       // 7: Weight
+  int particle;       // 8: Particle Type (in PDG Format)
+  bool dir_cos_neg;   // 9: Flag to tell if Third Direction Cosine is
+                      // Negative (1 means true)
+  bool first_in_hist; // 10: Flag to tell if this is the First Scored Particle
+                      // from this History (1 means true)
+  float tof;          // 11: Time of Flight [ns]
+  uint run_id;
+  uint event_id;
+  uint track_id;
 
   int worked = 0;
   if (binary) {
-    worked += fread(&x, sizeof(double), 1, source);
-    worked += fread(&y, sizeof(double), 1, source);
-    worked += fread(&z, sizeof(double), 1, source);
-    worked += fread(&dir_cos_x, sizeof(double), 1, source);
-    worked += fread(&dir_cos_y, sizeof(double), 1, source);
-    worked += fread(&energy, sizeof(double), 1, source);
-    worked += fread(&weight, sizeof(double), 1, source);
+    worked += fread(&x, sizeof(float), 1, source);
+    worked += fread(&y, sizeof(float), 1, source);
+    worked += fread(&z, sizeof(float), 1, source);
+    worked += fread(&dir_cos_x, sizeof(float), 1, source);
+    worked += fread(&dir_cos_y, sizeof(float), 1, source);
+    worked += fread(&energy, sizeof(float), 1, source);
+    worked += fread(&weight, sizeof(float), 1, source);
     worked += fread(&particle, sizeof(int), 1, source);
-    worked += fread(&dir_cos_neg, sizeof(uint), 1, source);
-    worked += fread(&first_in_hist, sizeof(uint), 1, source);
-    worked += fread(&tof, sizeof(double), 1, source);
+    worked += fread(&dir_cos_neg, 1, 1, source);
+    worked += fread(&first_in_hist, 1, 1, source);
+    worked += fread(&tof, sizeof(float), 1, source);
     worked += fread(&run_id, sizeof(uint), 1, source);
     worked += fread(&event_id, sizeof(uint), 1, source);
     worked += fread(&track_id, sizeof(uint), 1, source);
@@ -206,7 +207,9 @@ event *read_event(FILE *source) {
     worked = fscanf(source, "%u", &track_id);
   }
 
-  if (worked == EOF) {
+  if (worked == EOF && !binary) {
+    return NULL;
+  } else if (worked != 14 && binary) {
     return NULL;
   }
 
@@ -216,15 +219,15 @@ event *read_event(FILE *source) {
     return NULL;
   }
 
-  new_event->location = three_vec(x, y, z);
-  new_event->dir_cos_x = dir_cos_x;
-  new_event->dir_cos_y = dir_cos_y;
-  new_event->energy = energy;
-  new_event->weight = weight;
+  new_event->location = three_vec((double)x, (double)y, (double)z);
+  new_event->dir_cos_x = (double)dir_cos_x;
+  new_event->dir_cos_y = (double)dir_cos_y;
+  new_event->energy = (double)energy;
+  new_event->weight = (double)weight;
   new_event->particle = particle;
   new_event->dir_cos_neg = dir_cos_neg;
   new_event->first_in_hist = first_in_hist;
-  new_event->tof = tof;
+  new_event->tof = (double)tof;
   new_event->run_id = run_id;
   new_event->event_id = event_id;
   new_event->track_id = track_id;
@@ -421,7 +424,8 @@ prim_lor *create_primitive_lor(event *event_pair) {
   return new_prim_lor;
 }
 
-void test_create_primitive_lor(event *event_pair, prim_lor *primitive_lor) {
+void test_create_primitive_lor(event *restrict event_pair,
+                               prim_lor *primitive_lor) {
 
   event *gamma_1 = &event_pair[0];
   event *gamma_2 = &event_pair[1];
@@ -509,12 +513,13 @@ int main(int argc, char **argv) {
     }
     if (strcmp(flags[i], "-b") == 0) {
       binary = 1;
+      printf("reading file in binary \n");
     }
   }
   // checks to make sure you have correct number of args
   if (num_args(argc, argv) != 3) {
     printf("Incorrect number of arguments, three arguments required.\n");
-    printf("Use the -h or --help command to get options.\n\n");
+    printf("Use the -h command to get options.\n\n");
     exit(1);
   }
 
