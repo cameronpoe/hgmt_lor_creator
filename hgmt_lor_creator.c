@@ -210,8 +210,6 @@ annihilation *read_annihilation(FILE *source) {
   first_event = first_event2;
   wipe_list(path1);
   wipe_list(path2);
-  path1 = NULL;
-  path2 = NULL;
   // returning
   return new_annihilation;
 }
@@ -252,10 +250,8 @@ lor *create_lor(prim_lor *primitive_lor) {
   vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
   vec3d annihilation_loc = vec_add(geometric_center, displacement_from_center);
 
-  double transverse_uncert = sqrt(SPC_UNC * SPC_UNC + SPC_UNC * SPC_UNC);
-  double longtidudinal_uncert =
-      sqrt((SPD_LGHT * TIME_UNC) * (SPD_LGHT * TIME_UNC) +
-           (SPD_LGHT * TIME_UNC) * (SPD_LGHT * TIME_UNC));
+  double transverse_uncert = sqrt(2 * SPC_UNC * SPC_UNC);
+  double longtidudinal_uncert = sqrt(DETECTOR_THICKNESS / 24);
 
   lor *new = (lor *)malloc(sizeof(lor));
   new->center = annihilation_loc;
@@ -320,19 +316,17 @@ int main(int argc, char **argv) {
   annihilation *new_annihilation = read_annihilation(phsp_file);
   while (new_annihilation != NULL) {
     annihilations_occured++;
-    if (new_annihilation->photon1_path.num_hits == 0 ||
-        new_annihilation->photon2_path.num_hits == 0) {
-      new_annihilation = read_annihilation(phsp_file);
-      continue;
+    if (new_annihilation->photon1_path.num_hits != 0 &&
+        new_annihilation->photon2_path.num_hits != 0) {
+      prim_lor *primitive_lor = create_prim_lor(new_annihilation);
+      if (primitive_lor != NULL) {
+        lor *new_lor = create_lor(primitive_lor);
+        print_lor(new_lor, lor_output);
+        lors_created++;
+        free(new_lor);
+      }
+      free(primitive_lor);
     }
-    prim_lor *primitive_lor = create_prim_lor(new_annihilation);
-    if (primitive_lor != NULL) {
-      lor *new_lor = create_lor(primitive_lor);
-      print_lor(new_lor, lor_output);
-      lors_created++;
-      free(new_lor);
-    }
-    free(primitive_lor);
     free(new_annihilation->photon1_path.hits);
     free(new_annihilation->photon2_path.hits);
     free(new_annihilation);
