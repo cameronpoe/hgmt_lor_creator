@@ -17,9 +17,8 @@
 #define COLS 105
 #define SPD_LGHT 29.9792458 // cm/ns
 #define UNCERT_REP 30
-#define SPC_UNC 0.1       // cm
+#define SPC_UNC 0.1
 #define TIME_UNC 0.042463 // ns, sigma (0.100 ns FWHM)
-#define MAX_THREADS 7
 #define DETECTOR_THICKNESS 2.54
 #define DETECTOR_SEGMENTATION 1
 uint num_scatters = 0;
@@ -187,7 +186,7 @@ annihilation *read_annihilation(FILE *source) {
   new_annihilation->photon1_path.num_hits = path1_count;
   new_annihilation->photon2_path.num_hits = path2_count;
   // filling in all the values
-  for (int i = 0; i < path1_count; i++) {
+  for (int i = path1_count - 1; i >= 0; i--) {
     hit *detector_hit = event_to_hit(path1->data);
     new_annihilation->photon1_path.hits[i] = *detector_hit;
     free(detector_hit);
@@ -195,7 +194,7 @@ annihilation *read_annihilation(FILE *source) {
       path1 = path1->down;
     }
   }
-  for (int i = 0; i < path2_count; i++) {
+  for (int i = path2_count - 1; i >= 0; i--) {
     hit *detector_hit = event_to_hit(path2->data);
     new_annihilation->photon2_path.hits[i] = *detector_hit;
     free(detector_hit);
@@ -214,6 +213,9 @@ annihilation *read_annihilation(FILE *source) {
   return new_annihilation;
 }
 prim_lor *create_prim_lor(annihilation *new_annihilation) {
+  // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
+  // time_FOM); hit *hit2 =
+  // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
   hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
   hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
   if (hit1 == new_annihilation->photon1_path.hits) {
@@ -338,7 +340,7 @@ int main(int argc, char **argv) {
   printf("Scatters detected: %u\n", scatters_detected);
   printf("Lors created: %u\n", lors_created);
   printf("Annihilations ocurred: %u\n", annihilations_occured);
-  printf("Total efficiency: %lf\n",
+  printf("Lor creation efficiency: %lf\n",
          (double)lors_created / annihilations_occured);
   printf("First detected scatter correctness: %lf\n",
          (double)first_correct / first_guessed);

@@ -58,6 +58,7 @@ int *best_order(photon_path path, double (*FOM)(photon_path, int *)) {
   int *the_best_order = (int *)calloc(sizeof(int), num_hits);
   double bestFOM = 0;
   perm *permutation = first_perm(num_hits);
+  // print_perm(permutation);
   for (int i = 0; i < factor; i++) {
     double figure_of_merit = (*FOM)(path, permutation->perm);
     if (figure_of_merit > bestFOM) {

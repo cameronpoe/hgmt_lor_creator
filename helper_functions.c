@@ -123,3 +123,9 @@ void increment_perm(perm *permutation) {
     swap(&permutation->perm[place], &permutation->perm[place + 1]);
   }
 }
+void print_perm(perm *permutation) {
+  for (int i = 0; i < permutation->length + 1; i++) {
+    printf("%i ", permutation->perm[i]);
+  }
+  printf("\n");
+}

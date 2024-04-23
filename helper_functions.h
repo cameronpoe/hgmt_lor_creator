@@ -21,4 +21,5 @@ typedef struct perm_ {
 perm *first_perm(int n);
 void free_perm(perm *permutation);
 void increment_perm(perm *permutation);
+void print_perm(perm *permutation);
 #endif
