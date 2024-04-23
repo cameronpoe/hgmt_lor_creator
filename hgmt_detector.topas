@@ -4,6 +4,7 @@ b:Ge/CheckForOverlaps   = "True"
 b:Ts/PauseBeforeQuit    = "False"
 i:Ts/NumberOfThreads    = -2
 i:Ts/Seed = 5
+i:Ts/ShowHistoryCountAtInterval = 100000
 
 s:Gr/ViewA/Type = "OpenGL"
 b:Gr/ViewA/IncludeAxes = "True"
@@ -36,17 +37,16 @@ b:Sc/GammaDetector/IncludeTimeOfFlight = "True"
 b:Sc/GammaDetector/IncludeRunID = "True"
 b:Sc/GammaDetector/IncludeEventID = "True"
 b:Sc/GammaDetector/IncludeTrackID = "True"
-s:Sc/GammaDetector/OutputType   = "ASCII" 
+s:Sc/GammaDetector/OutputType   = "binary" 
 s:Sc/GammaDetector/IfOutputFileAlreadyExists  = "Overwrite"
 
-# includeFile = xcat_activity_phantom.topas
-# s:Ge/Patient/Parent   = "AirBox"
-# d:Ge/Patient/TransX   = 0. m
-# d:Ge/Patient/TransY   = 0. m
-# d:Ge/Patient/TransZ   = 0. m
-# d:Ge/Patient/RotX     = 0. deg
-# d:Ge/Patient/RotY     = 0. deg
-# d:Ge/Patient/RotZ     = 0 deg
+includeFile = derenzo_300keV_100.topas #xcat_activity_phantom.topas
+
+s:Ge/Derenzo/Parent = "AirBox"
+
+
+background_e = 30
+rod_e = 00090
 
 # d:Tf/TimelineStart = 0 ms
 # i:Tf/NumberOfSequentialTimes = 3

@@ -104,13 +104,13 @@ vec3d vec_norm(vec3d a) {
 }
 
 // multiplies a vector by a scalar
-vec3d vec_scaler(vec3d a, double b) {
+vec3d vec_scale(vec3d a, double b) {
   return three_vec(b * a.x, b * a.y, b * a.z);
 }
 
 // projects a onto b
 vec3d vec_projection(vec3d a, vec3d b) {
-  return vec_scaler(b, (vec_dot(a, b) / vec_dot(b, b)));
+  return vec_scale(b, (vec_dot(a, b) / vec_dot(b, b)));
 }
 
 // rejects b from a (i.e. projects a onto the plane perpendicular to b)
@@ -118,4 +118,10 @@ vec3d vec_rejection(vec3d a, vec3d b) {
   // find the projection of a onto b
   vec3d projection = vec_projection(a, b);
   return vec_sub(a, projection);
+}
+// returns the radial distance from axis of the detecter
+double radial_dist(vec3d a) { return vec_mag(three_vec(a.x, a.y, 0.0)); }
+// scales only the radial component
+vec3d radial_scale(vec3d a, double b) {
+  return three_vec(a.x * b, a.y * b, a.z);
 }

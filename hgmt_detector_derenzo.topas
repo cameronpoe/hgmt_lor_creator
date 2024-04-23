@@ -1,6 +1,6 @@
 b:Ts/UseQt              = "False"
 sv:Ph/Default/Modules   = 2 "g4em-standard_opt4" "g4em-penelope"
-b:Ge/CheckForOverlaps   = "True"
+b:Ge/CheckForOverlaps   = "False"
 b:Ts/PauseBeforeQuit    = "False"
 i:Ts/NumberOfThreads    = -2
 i:Ts/Seed = 5
@@ -12,11 +12,12 @@ b:Gr/ViewA/Active = "False"
 
 
 
-sv:Ma/LAB/Components = 2 "Carbon" "Hydrogen"
-# H28 C17
-uv:Ma/LAB/Fractions = 2 0.8786 0.1214
-d:Ma/LAB/Density = 0.860 g/cm3
-d:Ma/LAB/MeanExcitationEnergy = 59.4 eV
+b:Ma/B33/BuildFromMaterials = "True"
+sv:Ma/B33/Components = 4 "G4_SILICON_DIOXIDE" "G4_BORON_OXIDE" "G4_SODIUM_MONOXIDE" "G4_ALUMINUM_OXIDE"
+uv:Ma/B33/Fractions = 4 0.81 0.13 0.04 0.02
+d:Ma/B33/Density = 2.23 g/cm3
+
+
 
 includeFile = ./derenzo_300keV_100.topas
 
@@ -54,7 +55,7 @@ s:Ge/DetectorVolume/Parent	= "AirBox"
 d:Ge/DetectorVolume/HL		= 1 m
 d:Ge/DetectorVolume/RMin	= 0.45 m
 d:Ge/DetectorVolume/RMax	= 0.75 m
-s:Ge/DetectorVolume/Material	= "LAB"
+s:Ge/DetectorVolume/Material	= "B33"
 #d:Ge/DetectorVolume/MaxStepSize	= 1. mm
 d:Ge/DetectorVolume/MinStepSize 	= 0.01 mm
 
@@ -77,8 +78,8 @@ d:Ge/Cylinder/RMax             = 75.0 cm
 d:Ge/Cylinder/HL               = 1. m
 s:Ge/Cylinder/DrawingStyle     = "FullWireFrame"
 
-s:Sc/HGMTDerenzo/Surface      = "Cylinder/InnerCurvedSurface"
-s:Sc/HGMTDerenzo/Quantity			= "PhaseSpace"
+s:Sc/HGMTDerenzo/Quantity			= "HGMTNTuple"
+s:Sc/HGMTDerenzo/Component			= "DetectorVolume"
 # s:Sc/HGMTDerenzo/Component			= "DetectorVolume"
 b:Sc/HGMTDerenzo/PropagateToChildren	= "True"
 b:Sc/HGMTDerenzo/IncludeTimeOfFlight = "True"

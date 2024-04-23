@@ -44,11 +44,13 @@ void vec_print(vec3d a, FILE *output);
 vec3d vec_norm(vec3d a);
 
 // multiplies a vector by a scalar
-vec3d vec_scaler(vec3d a, double b);
+vec3d vec_scale(vec3d a, double b);
 
 // projects a onto b
 vec3d vec_projection(vec3d a, vec3d b);
 
 // rejects a from b (i.e. projects a onto the plane perpendicular to b)
 vec3d vec_rejection(vec3d a, vec3d b);
+double radial_dist(vec3d a);
+vec3d radial_scale(vec3d a, double b);
 #endif
