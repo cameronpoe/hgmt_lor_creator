@@ -36,6 +36,7 @@ typedef struct _lor {
 typedef struct _photon_path {
   hit *hits;
   int num_hits;
+  int has_first;
 } photon_path;
 typedef struct _annihilation {
   photon_path photon1_path;

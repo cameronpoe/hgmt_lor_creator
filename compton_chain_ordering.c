@@ -13,7 +13,7 @@
 #include "vector_ops.h"
 #define SPD_LGHT 29.9792458 // cm/ns
 #define SPC_UNC 0.1         // cm
-#define TIME_UNC 0.042463   // ns, sigma (0.100 ns FWHM)
+#define TIME_UNC 0.1        // 0.042463   // ns, sigma (0.100 ns FWHM)
 #define DETECTOR_THICKNESS 2.54
 #define DETECTOR_SEGMENTATION 1
 double time_FOM(photon_path path, int *order) {
@@ -52,38 +52,26 @@ double time_FOM(photon_path path, int *order) {
   }
   return FOM;
 }
-int *best_order(photon_path path, double (*FOM)(photon_path, int *)) {
+hit *initial_by_best_order(photon_path path,
+                           double (*FOM)(photon_path, int *)) {
   int num_hits = path.num_hits;
   int factor = factorial(num_hits);
-  int *the_best_order = (int *)calloc(sizeof(int), num_hits);
-  double bestFOM = 0;
   perm *permutation = first_perm(num_hits);
-  // print_perm(permutation);
-  for (int i = 0; i < factor; i++) {
+  hit *the_best_hit = path.hits;
+  double bestFOM = (*FOM)(path, permutation->perm);
+  for (int i = 0; i < factor - 1; i++) {
+    increment_perm(permutation);
     double figure_of_merit = (*FOM)(path, permutation->perm);
-    if (figure_of_merit > bestFOM) {
+    if (figure_of_merit < bestFOM) {
       bestFOM = figure_of_merit;
-      memcpy(the_best_order, permutation->perm, sizeof(int) * num_hits);
-    }
-    if (i != factor - 1) {
-      increment_perm(permutation);
+      the_best_hit = &path.hits[permutation->perm[0]];
+    } else if (figure_of_merit == bestFOM &&
+               the_best_hit->tof > path.hits[permutation->perm[0]].tof) {
+      the_best_hit = &path.hits[permutation->perm[0]];
     }
   }
   free_perm(permutation);
-  return the_best_order;
-}
-hit *initial_by_best_order(photon_path path,
-                           double (*FOM)(photon_path, int *)) {
-  int *the_best_order = best_order(path, FOM);
-  int index;
-  if (path.hits[the_best_order[0]].tof <
-      path.hits[the_best_order[path.num_hits - 1]].tof) {
-    index = the_best_order[0];
-  } else {
-    index = the_best_order[path.num_hits - 1];
-  }
-  free(the_best_order);
-  return &path.hits[index];
+  return the_best_hit;
 }
 hit *initial_by_best_time(photon_path path) {
   double best_tof = path.hits[0].tof;
@@ -95,4 +83,24 @@ hit *initial_by_best_time(photon_path path) {
     }
   }
   return initial;
+}
+hit *initial_by_weighted(photon_path path, double (*FOM)(photon_path, int *),
+                         double time_weight) {
+  int num_hits = path.num_hits;
+  int factor = factorial(num_hits);
+  perm *permutation = first_perm(num_hits);
+  double best_score = path.hits[0].tof * time_weight +
+                      (1 - time_weight) * (*FOM)(path, permutation->perm);
+  hit *best_hit = path.hits;
+  for (int i = 0; i < factor - 1; i++) {
+    increment_perm(permutation);
+    double score = path.hits[permutation->perm[0]].tof * time_weight +
+                   (1 - time_weight) * (*FOM)(path, permutation->perm);
+    if (score < best_score) {
+      best_score = score;
+      best_hit = &path.hits[permutation->perm[0]];
+    }
+  }
+  free_perm(permutation);
+  return best_hit;
 }
