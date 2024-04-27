@@ -10,15 +10,15 @@ import scipy.ndimage as image
 # source_file = "lor_rendering\\derenzo_12"
 # source_file = "lor_rendering\\derenzo_no_bg"
 # source_file = "lor_rendering\\derenzo_2_500"
-source_file = "./output"
+source_file = "HGMTDerenzo"
 
 
-pixels = 400
+pixels = 440
 
 source_image = np.loadtxt(source_file + ".data")
 print(np.shape(source_image))
 print(np.shape(source_image))
-source_image = source_image.reshape((pixels, pixels, np.shape(source_image)[1]))
+source_image = source_image.reshape(pixels, pixels)
 source_image = image.gaussian_filter(source_image, 1)
 
 # source_image = source_image.reshape((400,400))

@@ -13,14 +13,6 @@
 #include "vector_ops.h"
 
 // global variables
-#define PI 3.141592653589
-#define COLS 105
-#define SPD_LGHT 29.9792458 // cm/ns
-#define UNCERT_REP 30
-#define SPC_UNC 0.1
-#define TIME_UNC 0.042463 // ns, sigma (0.100 ns FWHM)
-#define DETECTOR_THICKNESS 2.54
-#define DETECTOR_SEGMENTATION 1
 uint num_scatters = 0;
 uint scatters_detected = 0;
 uint annihilations_occured = 0;
@@ -28,11 +20,88 @@ uint lors_created = 0;
 uint first_correct = 0;
 uint first_guessed = 0;
 uint first_scatter_correct = 0;
+uint error_debug = 0;
 event *first_event;
 double eff_by_energy[COLS];
 double E_max = 520.0;
 double E_min = 0.0;
+FILE *debug;
 
+void print_lor(lor *new_lor, FILE *output) {
+  fwrite(new_lor, sizeof(lor), 1, output);
+}
+prim_lor *create_prim_lor(annihilation *new_annihilation) {
+  // hit *hit1 =
+  //     initial_by_best_order(new_annihilation->photon1_path, time_FOM_cum);
+  // hit *hit2 =
+  //     initial_by_best_order(new_annihilation->photon2_path, time_FOM_cum);
+  hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
+  hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
+  //  hit *hit1 =
+  //     initial_by_weighted(new_annihilation->photon1_path, time_FOM, 0.5);
+  //  hit *hit2 =
+  //     initial_by_weighted(new_annihilation->photon2_path, time_FOM, 0.5);
+  if (hit1 == new_annihilation->photon1_path->hits) {
+    first_correct++;
+    if (new_annihilation->photon1_path->has_first) {
+      first_scatter_correct++;
+    }
+  }
+  if (hit2 == new_annihilation->photon2_path->hits) {
+    first_correct++;
+    if (new_annihilation->photon2_path->has_first) {
+      first_scatter_correct++;
+    }
+  }
+  first_guessed += 2;
+  prim_lor *new_prim_lor = (prim_lor *)malloc(sizeof(prim_lor));
+  new_prim_lor->first_loc = hit1->location;
+  new_prim_lor->second_loc = hit2->location;
+  new_prim_lor->first_time = hit1->tof;
+  new_prim_lor->second_time = hit2->tof;
+  return new_prim_lor;
+}
+lor *create_lor(prim_lor *primitive_lor) {
+
+  vec3d a = primitive_lor->first_loc;
+  // printf("create_lor: a: \n");
+  // vec_print(a, stdout);
+  // printf("\n");
+  // printf("b: \n");
+  vec3d b = primitive_lor->second_loc;
+  // vec_print(b, stdout);
+  // printf("\n");
+  vec3d c = vec_sub(a, b);
+  vec3d geometric_center = vec_add(b, vec_scale(c, 0.5));
+  // printf("geometic center: \n");
+  // vec_print(geometric_center, stdout);
+  // printf("\n");
+  vec3d c_hat = vec_norm(c);
+  double delta_t = -(primitive_lor->first_time - primitive_lor->second_time);
+  vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
+  vec3d annihilation_loc = vec_add(geometric_center, displacement_from_center);
+
+  double transverse_uncert = sqrt(2 * SPC_UNC * SPC_UNC);
+  double longtidudinal_uncert = sqrt(TIME_UNC * TIME_UNC * 2);
+
+  lor *new = (lor *)malloc(sizeof(lor));
+  new->center = annihilation_loc;
+  new->dir = c_hat;
+  new->long_uncert = longtidudinal_uncert;
+  new->transverse_uncert = transverse_uncert;
+
+  return new;
+}
+lor *perfect_lor(event *event1, event *event2) {
+  prim_lor *new_prim_lor = (prim_lor *)malloc(sizeof(prim_lor));
+  new_prim_lor->first_loc = event1->location;
+  new_prim_lor->second_loc = event2->location;
+  new_prim_lor->first_time = event1->tof;
+  new_prim_lor->second_time = event2->tof;
+  lor *perfect = create_lor(new_prim_lor);
+  free(new_prim_lor);
+  return perfect;
+}
 double linear_interpolation(double nums[COLS], double min, double max,
                             double value) {
   double i = (COLS - 1) * (value - min) / (max - min);
@@ -97,21 +166,15 @@ event *read_event(FILE *source) {
 
   if (new_event->particle_type == 22) {
     num_scatters++;
-    printm("Number of recorded gammas read: ", num_scatters, 100000);
+    printm("Number of recorded gammas read: ", num_scatters, 1000000);
   }
   return new_event;
 }
 event *read_gamma(FILE *source) {
   event *new_event = read_event(source);
-  if (new_event == NULL) {
-    return NULL;
-  }
-  while (new_event->particle_type != 22) {
+  while (new_event != NULL && new_event->particle_type != 22) {
     free(new_event);
     new_event = read_event(source);
-    if (new_event == NULL) {
-      return NULL;
-    }
   }
   return new_event;
 }
@@ -150,166 +213,129 @@ hit *event_to_hit(event *single_event) {
   new_hit->location = vec_add(new_hit->location, offset);
   return new_hit;
 }
-
-annihilation *read_annihilation(FILE *source) {
+photon_path *read_photon_path(FILE *source) {
+  if (first_event == NULL) {
+    printf("fdsfsd\n");
+  }
   // reading all the scatters within the time window
   event *first_event2 = NULL;
-  llist *path1 = NULL;
-  llist *path2 = NULL;
-  int path1_count = 0;
-  int path2_count = 0;
-  int path1_has_first = 0;
-  int path2_has_first = 0;
-  int looked_at_first2 = 0;
-  int need_to_free_e1 = 1;
-  if (first_event == NULL) {
-    return NULL;
-  }
-  // organizing the scatters that are detected
-  if (is_scatter_detected(first_event)) {
-    path1 = add_to_top(path1, first_event);
-    path1_has_first = 1;
-    path1_count++;
-    need_to_free_e1 = 0;
+  llist *path = NULL;
+  int num_hits = 0;
+  photon_path *photon = (photon_path *)malloc(sizeof(photon_path));
+  photon->has_first = is_scatter_detected(first_event);
+  if (photon->has_first) {
+    path = add_to_top(path, first_event);
+    num_hits++;
   }
   while (1) {
     event *new_event = read_gamma(source);
     if (new_event == NULL) {
-      free(new_event);
       break;
     }
-    if (first_event->event_id != new_event->event_id) {
+    if (first_event->event_id != new_event->event_id ||
+        first_event->track_id != new_event->track_id) {
       first_event2 = new_event;
       break;
     }
     if (is_scatter_detected(new_event)) {
-      if (new_event->track_id == first_event->track_id) {
-        path1 = add_to_top(path1, new_event);
-        path1_count++;
-      } else {
-        if (!looked_at_first2) {
-          looked_at_first2 = 1;
-          path2_has_first = 1;
-        }
-        path2 = add_to_top(path2, new_event);
-        path2_count++;
-      }
+      path = add_to_top(path, new_event);
+      num_hits++;
     } else {
-      if (!looked_at_first2 && new_event->track_id != first_event->track_id) {
-        looked_at_first2 = 1;
-      }
       free(new_event);
     }
   }
-  // generating the annihilation
-  annihilation *new_annihilation = (annihilation *)malloc(sizeof(annihilation));
-  new_annihilation->photon1_path.hits =
-      (hit *)malloc(sizeof(hit) * path1_count);
-  new_annihilation->photon2_path.hits =
-      (hit *)malloc(sizeof(hit) * path2_count);
-  new_annihilation->photon1_path.num_hits = path1_count;
-  new_annihilation->photon2_path.num_hits = path2_count;
-  new_annihilation->photon1_path.has_first = path1_has_first;
-  new_annihilation->photon2_path.has_first = path2_has_first;
+  // generating the photon path
+  photon->hits = (hit *)malloc(sizeof(hit) * num_hits);
+  photon->num_hits = num_hits;
   // filling in all the values
-  for (int i = path1_count - 1; i >= 0; i--) {
-    hit *detector_hit = event_to_hit(path1->data);
-    new_annihilation->photon1_path.hits[i] = *detector_hit;
+  for (int i = num_hits - 1; i >= 0; i--) {
+    hit *detector_hit = event_to_hit(path->data);
+    photon->hits[i] = *detector_hit;
     free(detector_hit);
-    if (i != path1_count - 1) {
-      path1 = path1->down;
-    }
-  }
-  for (int i = path2_count - 1; i >= 0; i--) {
-    hit *detector_hit = event_to_hit(path2->data);
-    new_annihilation->photon2_path.hits[i] = *detector_hit;
-    free(detector_hit);
-    if (i != path2_count - 1) {
-      path2 = path2->down;
+    if (i != num_hits - 1) {
+      path = path->down;
     }
   }
   // freeing all the redundant data
-  if (need_to_free_e1) {
+  if (!photon->has_first) {
     free(first_event);
   }
   first_event = first_event2;
-  wipe_list(path1);
-  wipe_list(path2);
+  wipe_list(path);
   // returning
-  return new_annihilation;
+  return photon;
 }
-prim_lor *create_prim_lor(annihilation *new_annihilation) {
-  // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
-  // time_FOM); hit *hit2 =
-  // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
-  hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
-  hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
-  // hit *hit1 =
-  //    initial_by_weighted(new_annihilation->photon1_path, time_FOM, 0.5);
-  // hit *hit2 =
-  //    initial_by_weighted(new_annihilation->photon2_path, time_FOM, 0.5);
-  if (hit1 == new_annihilation->photon1_path.hits) {
-    first_correct++;
-    if (new_annihilation->photon1_path.has_first) {
-      first_scatter_correct += 2;
-    }
+void skip_photon_path(FILE *source) {
+  event *new_event = read_gamma(source);
+  while (new_event != NULL && new_event->track_id == first_event->track_id) {
+    free(new_event);
+    new_event = read_gamma(source);
   }
-  if (hit2 == new_annihilation->photon2_path.hits) {
-    first_correct++;
-    if (new_annihilation->photon2_path.has_first) {
-      // first_scatter_correct++;
-    }
+  free(first_event);
+  first_event = new_event;
+  return;
+}
+annihilation *read_annihilation(FILE *source) {
+  // this is so complicated because we only get photon paths with trackid 2 or 3
+  // so we must filter out all the other junk
+  event *event1 = NULL; // debus stuff;
+  event *event2 = NULL; // debug stuff;
+  if (first_event == NULL) {
+    return NULL;
   }
-  first_guessed += 2;
-  prim_lor *new_prim_lor = (prim_lor *)malloc(sizeof(prim_lor));
-  new_prim_lor->first_loc = hit1->location;
-  new_prim_lor->second_loc = hit2->location;
-  new_prim_lor->first_time = hit1->tof;
-  new_prim_lor->second_time = hit2->tof;
-  return new_prim_lor;
-}
-lor *create_lor(prim_lor *primitive_lor) {
-
-  vec3d a = primitive_lor->first_loc;
-  // printf("create_lor: a: \n");
-  // vec_print(a, stdout);
+  annihilation *photon_pair = (annihilation *)malloc(sizeof(annihilation));
+  int event_id = first_event->event_id;
+  while (first_event != NULL && first_event->track_id != 2 &&
+         first_event->track_id != 3) {
+    skip_photon_path(source);
+  }
+  if (first_event != NULL && first_event->event_id == event_id) {
+    if (error_debug) {
+      event1 = (event *)malloc(sizeof(event));
+      memcpy(event1, first_event, sizeof(event));
+    }
+    photon_pair->photon1_path = read_photon_path(source);
+  } else {
+    photon_pair->photon1_path = NULL;
+  }
+  while (first_event != NULL && first_event->track_id != 2 &&
+         first_event->track_id != 3) {
+    skip_photon_path(source);
+  }
+  if (first_event != NULL && first_event->event_id == event_id) {
+    // printf("%i", first_event->track_id);
+    if (error_debug) {
+      event2 = (event *)malloc(sizeof(event));
+      memcpy(event2, first_event, sizeof(event));
+    }
+    photon_pair->photon2_path = read_photon_path(source);
+  } else {
+    photon_pair->photon2_path = NULL;
+  }
+  while (first_event != NULL && first_event->event_id == event_id) {
+    skip_photon_path(source);
+  }
+  if (error_debug && event1 != NULL && event2 != NULL &&
+      photon_pair->photon1_path->num_hits != 0 &&
+      photon_pair->photon2_path->num_hits != 0) {
+    lor *perfect = perfect_lor(event1, event2);
+    print_lor(perfect, debug);
+    free(perfect);
+  }
   // printf("\n");
-  // printf("b: \n");
-  vec3d b = primitive_lor->second_loc;
-  // vec_print(b, stdout);
-  // printf("\n");
-  vec3d c = vec_sub(a, b);
-  vec3d geometric_center = vec_add(b, vec_scale(c, 0.5));
-  // printf("geometic center: \n");
-  // vec_print(geometric_center, stdout);
-  // printf("\n");
-  vec3d c_hat = vec_norm(c);
-  double delta_t = -(primitive_lor->first_time - primitive_lor->second_time);
-  vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
-  vec3d annihilation_loc = vec_add(geometric_center, displacement_from_center);
-
-  double transverse_uncert = sqrt(2 * SPC_UNC * SPC_UNC);
-  double longtidudinal_uncert = sqrt(DETECTOR_THICKNESS / 24);
-
-  lor *new = (lor *)malloc(sizeof(lor));
-  new->center = annihilation_loc;
-  new->dir = c_hat;
-  new->long_uncert = longtidudinal_uncert;
-  new->transverse_uncert = transverse_uncert;
-
-  return new;
+  return photon_pair;
 }
-void print_lor(lor *new_lor, FILE *output) {
-  fwrite(&new_lor->center.x, sizeof(double), 1, output);
-  fwrite(&new_lor->center.y, sizeof(double), 1, output);
-  fwrite(&new_lor->center.z, sizeof(double), 1, output);
-  fwrite(&new_lor->dir.x, sizeof(double), 1, output);
-  fwrite(&new_lor->dir.y, sizeof(double), 1, output);
-  fwrite(&new_lor->dir.z, sizeof(double), 1, output);
-  fwrite(&new_lor->long_uncert, sizeof(double), 1, output);
-  fwrite(&new_lor->transverse_uncert, sizeof(double), 1, output);
+void free_annihilation(annihilation *new_annihilation) {
+  if (new_annihilation->photon1_path != NULL) {
+    free(new_annihilation->photon1_path->hits);
+    free(new_annihilation->photon1_path);
+  }
+  if (new_annihilation->photon2_path != NULL) {
+    free(new_annihilation->photon2_path->hits);
+    free(new_annihilation->photon2_path);
+  }
+  free(new_annihilation);
 }
-
 int main(int argc, char **argv) {
   char **flags = get_flags(argc, argv);
   char **args = get_args(argc, argv);
@@ -319,7 +345,12 @@ int main(int argc, char **argv) {
       printf("Usage: ./hgmt_lor_creator [TOPAS_file_location.phsp] "
              "[efficiency_table_location.csv] [LOR_output_location]\n");
       printf("-h: print this help\n");
+      printf("-e: run with lor error debug\n");
       exit(0);
+    }
+    if (strcmp(flags[i], "-e") == 0) {
+      printf("running with lor error debug\n");
+      error_debug = 1;
     }
   }
   // checks to make sure you have correct number of args
@@ -347,6 +378,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  debug = fopen("debug.data", "wb");
+  if (debug == NULL) {
+    printf("Unable to open debug file for writing\n");
+    return 1;
+  }
   FILE *phsp_file = fopen(args[0], "rb");
 
   printf("Constructing the hits...\n");
@@ -354,8 +390,9 @@ int main(int argc, char **argv) {
   annihilation *new_annihilation = read_annihilation(phsp_file);
   while (new_annihilation != NULL) {
     annihilations_occured++;
-    if (new_annihilation->photon1_path.num_hits != 0 &&
-        new_annihilation->photon2_path.num_hits != 0) {
+    if (new_annihilation->photon2_path != NULL &&
+        new_annihilation->photon1_path->num_hits != 0 &&
+        new_annihilation->photon2_path->num_hits != 0) {
       // printf("%i \n", new_annihilation->photon1_path.num_hits);
       // printf("%i \n\n", new_annihilation->photon2_path.num_hits);
       prim_lor *primitive_lor = create_prim_lor(new_annihilation);
@@ -367,9 +404,7 @@ int main(int argc, char **argv) {
       }
       free(primitive_lor);
     }
-    free(new_annihilation->photon1_path.hits);
-    free(new_annihilation->photon2_path.hits);
-    free(new_annihilation);
+    free_annihilation(new_annihilation);
     new_annihilation = read_annihilation(phsp_file);
   }
   printf("Done!\n\n");

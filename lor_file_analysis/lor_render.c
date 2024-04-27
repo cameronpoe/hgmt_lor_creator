@@ -62,44 +62,17 @@ lor *read_lor(FILE *input) {
   if (input == NULL) {
     return NULL;
   }
-
-  double center_x;
-  double center_y;
-  double center_z;
-  double dir_x;
-  double dir_y;
-  double dir_z;
-  double longitudinal;
-  double transverse;
-
-  int worked = 0;
-  worked += fread(&center_x, sizeof(double), 1, input);
-  worked += fread(&center_y, sizeof(double), 1, input);
-  worked += fread(&center_z, sizeof(double), 1, input);
-  worked += fread(&dir_x, sizeof(double), 1, input);
-  worked += fread(&dir_y, sizeof(double), 1, input);
-  worked += fread(&dir_z, sizeof(double), 1, input);
-  worked += fread(&longitudinal, sizeof(double), 1, input);
-  worked += fread(&transverse, sizeof(double), 1, input);
-
-  if (worked != 8) {
-    return NULL;
-  }
-
-  // make a new event to be passed out
   lor *new = (lor *)malloc(sizeof(lor));
   if (new == NULL) {
     return NULL;
   }
+  int worked = fread(new, sizeof(lor), 1, input);
 
-  new->center = three_vec(center_x, center_y, center_z);
-  vec3d cleanup = three_vec(dir_x, dir_y, dir_z);
-  new->dir = vec_norm(cleanup);
+  if (worked != 1) {
+    return NULL;
+  }
 
-  new->long_uncert = longitudinal *long_adjust;
-  // fprintf(stdout, "%lf\n", new->long_uncert);
-  new->transverse_uncert = transverse *trans_adjust;
-
+  // make a new event to be passed out
   return new;
 }
 

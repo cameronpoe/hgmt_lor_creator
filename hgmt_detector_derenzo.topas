@@ -15,7 +15,7 @@ b:Gr/ViewA/Active = "False"
 b:Ma/B33/BuildFromMaterials = "True"
 sv:Ma/B33/Components = 4 "G4_SILICON_DIOXIDE" "G4_BORON_OXIDE" "G4_SODIUM_MONOXIDE" "G4_ALUMINUM_OXIDE"
 uv:Ma/B33/Fractions = 4 0.81 0.13 0.04 0.02
-d:Ma/B33/Density = 2.23 g/cm3
+d:Ma/B33/Density = 1.67 g/cm3
 
 
 

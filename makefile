@@ -7,5 +7,7 @@ DEPS=vector_ops.h helper_functions.h hgmt_structs.h llist.h compton_chain_orderi
 hgmt_lor_creator: hgmt_lor_creator.o vector_ops.o helper_functions.o llist.o compton_chain_ordering.o
 	$(CC) -o hgmt_lor_creator $^  $(CFLAGS)
 
+hgmt_debug: hgmt_debug.o vector_ops.o helper_functions.o llist.o
+	$(CC) -o hgmt_debug $^  $(CFLAGS)
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

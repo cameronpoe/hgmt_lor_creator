@@ -22,4 +22,13 @@ perm *first_perm(int n);
 void free_perm(perm *permutation);
 void increment_perm(perm *permutation);
 void print_perm(perm *permutation);
+typedef struct histogram_ {
+  int *counts;
+  int num_bars;
+  double min;
+  double max;
+} histogram;
+histogram *new_histogram(double min, double max, int num_bars);
+void add_to_histogram(double value, histogram *hist);
+void print_histogram(histogram *hist);
 #endif
