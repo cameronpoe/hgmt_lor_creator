@@ -39,8 +39,7 @@ double time_FOM_cum(photon_path *path, int *order) {
   double FOM = 0;
   double var_t = TIME_UNC * TIME_UNC;
   double var_dt = 0;
-  double dt = 0;
-  double t_0 = path->hits[order[0]].tof;
+  double dt = path->hits[order[0]].tof;
   for (int i = 0; i < path->num_hits - 1; i++) {
     hit *hit1 = &path->hits[order[i]];
     hit *hit2 = &path->hits[order[i + 1]];
@@ -49,9 +48,8 @@ double time_FOM_cum(photon_path *path, int *order) {
     dt += d / SPD_LGHT;
     double var_d = variance_dist(hit1->location, hit2->location, d);
     var_dt += var_d / (SPD_LGHT * SPD_LGHT);
-    double rel_t = hit2->tof - t_0;
     // calculating FOM
-    FOM += fabs(rel_t - dt) / sqrt(var_t + var_dt);
+    FOM += fabs(hit2->tof - dt) / sqrt(var_t + var_dt);
   }
   return FOM;
 }
@@ -66,7 +64,7 @@ double time_FOM(photon_path *path, int *order) {
     double var_delta_t = TIME_UNC * TIME_UNC * 2;
     double var_dt = var_d / (SPD_LGHT * SPD_LGHT);
     // calculating FOM
-    double delta_t = fabs(hit1->tof - hit2->tof);
+    double delta_t = hit2->tof - hit1->tof;
     FOM += fabs(delta_t - d / SPD_LGHT) / sqrt(var_delta_t + var_dt);
   }
   return FOM;

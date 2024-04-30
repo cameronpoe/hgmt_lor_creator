@@ -13,39 +13,42 @@
 #include "llist.h"
 #include "vector_ops.h"
 double tot_error;
-uint num_lors;
-lor *read_lor(FILE *input) {
-  if (input == NULL) {
-    return NULL;
-  }
-  lor *new = (lor *)malloc(sizeof(lor));
-  int worked = fread(new, sizeof(lor), 1, input);
+uint num_datas;
+FILE *debug_out;
+void print_data(double *data, FILE *output) {
+  fwrite(data, sizeof(double), 1, output);
+}
+double read_double(FILE *input) {
+  double num;
+  int worked = fread(&num, sizeof(double), 1, input);
 
   if (worked != 1) {
-    return NULL;
+    return -1;
   }
   // make a new event to be passed out
-  return new;
+  return num;
 }
-void error_debug(FILE *perfects, FILE *fuzzies) {
+void error_debug(FILE *input) {
   histogram *hist = new_histogram(0.0, 100.0, 40);
-  lor *perfect = read_lor(perfects);
-  lor *fuzzy = read_lor(fuzzies);
-  while (fuzzy != NULL && perfect != NULL) {
-    num_lors++;
-    double dist = vec_dist(perfect->center, fuzzy->center);
-    tot_error += dist;
-    add_to_histogram(dist, hist);
-    free(perfect);
-    free(fuzzy);
-    perfect = read_lor(perfects);
-    fuzzy = read_lor(fuzzies);
+
+  double num = read_double(input);
+  double tot = 0;
+  while (num != -1) {
+    num_datas++;
+    tot += num;
+    add_to_histogram(num, hist);
+    num = read_double(input);
   }
-  printf("number of lors: %i\n", num_lors);
-  printf("average error: %lf\n", (double)tot_error / num_lors);
+  printf("number of lors: %i\n", num_datas);
+  printf("average error: %lf\n", (double)tot_error / num_datas);
   print_histogram(hist);
 }
 int main(int argc, char **argv) {
+  debug_out = fopen("debug_out.data", "wb");
+  if (debug_out == NULL) {
+    printf("Unable to open output file for writing\n");
+    return 1;
+  }
   char **flags = get_flags(argc, argv);
   char **args = get_args(argc, argv);
   // defines the help function and how to call it (by using -h or --help)
@@ -58,9 +61,8 @@ int main(int argc, char **argv) {
     }
     if (strcmp(flags[i], "-e") == 0) {
       printf("running with lor error debug\n");
-      FILE *perfects = fopen(args[0], "rb");
-      FILE *wrongs = fopen(args[1], "rb");
-      error_debug(perfects, wrongs);
+      FILE *input = fopen(args[0], "rb");
+      error_debug(input);
     }
   }
 }
