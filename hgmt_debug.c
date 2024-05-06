@@ -12,7 +12,6 @@
 #include "hgmt_structs.h"
 #include "llist.h"
 #include "vector_ops.h"
-double tot_error;
 uint num_datas;
 FILE *debug_out;
 void print_data(double *data, FILE *output) {
@@ -40,7 +39,7 @@ void error_debug(FILE *input) {
     num = read_double(input);
   }
   printf("number of lors: %i\n", num_datas);
-  printf("average error: %lf\n", (double)tot_error / num_datas);
+  printf("average error: %lf\n", (double)tot / num_datas);
   print_histogram(hist);
 }
 int main(int argc, char **argv) {

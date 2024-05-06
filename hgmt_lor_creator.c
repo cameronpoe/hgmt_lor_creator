@@ -40,10 +40,6 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
   hit *hit2 = initial_by_best_order(new_annihilation->photon2_path, time_FOM);
   // hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
   // hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
-  //   hit *hit1 =
-  //      initial_by_weighted(new_annihilation->photon1_path, time_FOM, 0.5);
-  //   hit *hit2 =
-  //      initial_by_weighted(new_annihilation->photon2_path, time_FOM, 0.5);
   if (hit1 == new_annihilation->photon1_path->hits) {
     first_correct++;
     if (new_annihilation->photon1_path->has_first) {
@@ -70,20 +66,18 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
   }
   first_guessed += 2;
   prim_lor *new_prim_lor = (prim_lor *)malloc(sizeof(prim_lor));
-  new_prim_lor->first_loc = hit1->location;
-  new_prim_lor->second_loc = hit2->location;
-  new_prim_lor->first_time = hit1->tof;
-  new_prim_lor->second_time = hit2->tof;
+  new_prim_lor->hit1 = hit1;
+  new_prim_lor->hit2 = hit2;
   return new_prim_lor;
 }
 lor *create_lor(prim_lor *primitive_lor) {
 
-  vec3d a = primitive_lor->first_loc;
+  vec3d a = primitive_lor->hit1->location;
   // printf("create_lor: a: \n");
   // vec_print(a, stdout);
   // printf("\n");
   // printf("b: \n");
-  vec3d b = primitive_lor->second_loc;
+  vec3d b = primitive_lor->hit2->location;
   // vec_print(b, stdout);
   // printf("\n");
   vec3d c = vec_sub(a, b);
@@ -92,7 +86,7 @@ lor *create_lor(prim_lor *primitive_lor) {
   // vec_print(geometric_center, stdout);
   // printf("\n");
   vec3d c_hat = vec_norm(c);
-  double delta_t = -(primitive_lor->first_time - primitive_lor->second_time);
+  double delta_t = -(primitive_lor->hit1->tof - primitive_lor->hit2->tof);
   vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
   vec3d annihilation_loc = vec_add(geometric_center, displacement_from_center);
 
@@ -254,7 +248,7 @@ photon_path *read_photon_path(FILE *source) {
     hit *detector_hit = event_to_hit(path->data);
     photon->hits[i] = *detector_hit;
     free(detector_hit);
-    if (i != num_hits - 1) {
+    if (i != 0) {
       path = path->down;
     }
   }

@@ -29,10 +29,8 @@ typedef struct hit_ {
 } hit;
 
 typedef struct prim_lor_ {
-  vec3d first_loc;
-  vec3d second_loc;
-  double first_time;
-  double second_time;
+  hit *hit1;
+  hit *hit2;
 } prim_lor;
 
 typedef struct _lor {

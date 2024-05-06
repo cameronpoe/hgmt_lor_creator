@@ -11,14 +11,21 @@
 #include "helper_functions.h"
 #include "hgmt_structs.h"
 #include "vector_ops.h"
+#define TIME_SD_TOLERANCE 3
+#define OPTIMIZE 1
 double variance_dist(vec3d loc1, vec3d loc2, double d) {
-  double var_rad = DETECTOR_THICKNESS * DETECTOR_THICKNESS / 48.0;
-  double var_tan = SPC_UNC * SPC_UNC;
-  double rad1 = radial_dist(loc1);
-  double rad2 = radial_dist(loc2);
   double delta_x = loc1.x - loc2.x;
   double delta_y = loc1.y - loc2.y;
   double delta_z = loc1.z - loc2.z;
+  double rad1 = radial_dist(loc1);
+  double rad2 = radial_dist(loc2);
+  double var_rad;
+  if (DETECTOR_SEGMENTATION) {
+    double var_rad = DETECTOR_THICKNESS * DETECTOR_THICKNESS / 48.0;
+  } else {
+    var_rad = SPC_UNC;
+  }
+  double var_tan = SPC_UNC * SPC_UNC;
   double cos_theta1 = loc1.x / rad1;
   double sin_theta1 = loc1.y / rad1;
   double cos_theta2 = loc2.x / rad2;
@@ -35,14 +42,14 @@ double variance_dist(vec3d loc1, vec3d loc2, double d) {
                  delta_z * delta_z * var_delta_z / (d * d);
   return var_d;
 }
-double time_FOM_cum(photon_path *path, int *order) {
+double time_FOM_cum(hit *hits, int *order, int num_hits) {
   double FOM = 0;
   double var_t = TIME_UNC * TIME_UNC;
   double var_dt = 0;
-  double dt = path->hits[order[0]].tof;
-  for (int i = 0; i < path->num_hits - 1; i++) {
-    hit *hit1 = &path->hits[order[i]];
-    hit *hit2 = &path->hits[order[i + 1]];
+  double dt = hits[order[0]].tof;
+  for (int i = 0; i < num_hits - 1; i++) {
+    hit *hit1 = &hits[order[i]];
+    hit *hit2 = &hits[order[i + 1]];
     // calculating sigma values
     double d = vec_dist(hit1->location, hit2->location);
     dt += d / SPD_LGHT;
@@ -53,11 +60,11 @@ double time_FOM_cum(photon_path *path, int *order) {
   }
   return FOM;
 }
-double time_FOM(photon_path *path, int *order) {
+double time_FOM(hit *hits, int *order, int num_hits) {
   double FOM = 0;
-  for (int i = 0; i < path->num_hits - 1; i++) {
-    hit *hit1 = &path->hits[order[i]];
-    hit *hit2 = &path->hits[order[i + 1]];
+  for (int i = 0; i < num_hits - 1; i++) {
+    hit *hit1 = &hits[order[i]];
+    hit *hit2 = &hits[order[i + 1]];
     // calculating sigma values
     double d = vec_dist(hit1->location, hit2->location);
     double var_d = variance_dist(hit1->location, hit2->location, d);
@@ -69,22 +76,35 @@ double time_FOM(photon_path *path, int *order) {
   }
   return FOM;
 }
+int compare_hits(const void *hit1, const void *hit2) {
+  return ((hit *)hit1)->tof > ((hit *)hit2)->tof;
+}
 hit *initial_by_best_order(photon_path *path,
-                           double (*FOM)(photon_path *, int *)) {
+                           double (*FOM)(hit *hits, int *order, int num_hits)) {
   int num_hits = path->num_hits;
+  hit *hits = path->hits;
+  if (OPTIMIZE) {
+    qsort(hits, num_hits, sizeof(hit), compare_hits);
+    for (int i = 0; i < num_hits; i++) {
+      if (hits[i].tof - hits[0].tof > TIME_SD_TOLERANCE * TIME_UNC) {
+        num_hits = i + 1;
+        break;
+      }
+    }
+  }
   int factor = factorial(num_hits);
   perm *permutation = first_perm(num_hits);
-  hit *the_best_hit = path->hits;
-  double bestFOM = (*FOM)(path, permutation->perm);
+  hit *the_best_hit = hits;
+  double bestFOM = (*FOM)(hits, permutation->perm, num_hits);
   for (int i = 0; i < factor - 1; i++) {
     increment_perm(permutation);
-    double figure_of_merit = (*FOM)(path, permutation->perm);
+    double figure_of_merit = (*FOM)(hits, permutation->perm, num_hits);
     if (figure_of_merit < bestFOM) {
       bestFOM = figure_of_merit;
-      the_best_hit = &path->hits[permutation->perm[0]];
+      the_best_hit = &hits[permutation->perm[0]];
     } else if (figure_of_merit == bestFOM &&
-               the_best_hit->tof > path->hits[permutation->perm[0]].tof) {
-      the_best_hit = &path->hits[permutation->perm[0]];
+               the_best_hit->tof > hits[permutation->perm[0]].tof) {
+      the_best_hit = &hits[permutation->perm[0]];
     }
   }
   free_perm(permutation);
@@ -100,24 +120,4 @@ hit *initial_by_best_time(photon_path *path) {
     }
   }
   return initial;
-}
-hit *initial_by_weighted(photon_path *path, double (*FOM)(photon_path *, int *),
-                         double time_weight) {
-  int num_hits = path->num_hits;
-  int factor = factorial(num_hits);
-  perm *permutation = first_perm(num_hits);
-  double best_score = path->hits[0].tof * time_weight +
-                      (1 - time_weight) * (*FOM)(path, permutation->perm);
-  hit *best_hit = path->hits;
-  for (int i = 0; i < factor - 1; i++) {
-    increment_perm(permutation);
-    double score = path->hits[permutation->perm[0]].tof * time_weight +
-                   (1 - time_weight) * (*FOM)(path, permutation->perm);
-    if (score < best_score) {
-      best_score = score;
-      best_hit = &path->hits[permutation->perm[0]];
-    }
-  }
-  free_perm(permutation);
-  return best_hit;
 }
