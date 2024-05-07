@@ -18,7 +18,7 @@ typedef struct event_ {
   uint event_id;
   double energy_deposit;
   vec3d location;
-  vec3d momentum;
+  // vec3d momentum;
   double tof;
   int particle_type;
   int track_id;

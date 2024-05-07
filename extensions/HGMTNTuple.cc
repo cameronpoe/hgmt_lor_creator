@@ -32,10 +32,10 @@ HGMTNTuple::HGMTNTuple(TsParameterManager *pM, TsMaterialManager *mM,
   fNtuple->RegisterColumnF(&fPosX, "Position X", "cm");
   fNtuple->RegisterColumnF(&fPosY, "Position Y", "cm");
   fNtuple->RegisterColumnF(&fPosZ, "Position Z", "cm");
-  fNtuple->RegisterColumnF(&fMomentumX, "Momentum X", "");
-  fNtuple->RegisterColumnF(&fMomentumY, "Momentum Y", "");
-  fNtuple->RegisterColumnF(&fMomentumZ, "Momentum Z", "");
-  // fNtuple->RegisterColumnF(&fWeight, "Weight", "");
+  // fNtuple->RegisterColumnF(&fMomentumX, "Momentum X", "");
+  // fNtuple->RegisterColumnF(&fMomentumY, "Momentum Y", "");
+  // fNtuple->RegisterColumnF(&fMomentumZ, "Momentum Z", "");
+  //  fNtuple->RegisterColumnF(&fWeight, "Weight", "");
   fNtuple->RegisterColumnF(&fTimeOfFlight, "Time of Flight", "ns");
   fNtuple->RegisterColumnI(&fParticleType, "Particle Type (in PDG Format)");
   // fNtuple->RegisterColumnS(&fOriginProcessName, "Origin Process");
@@ -63,14 +63,14 @@ G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
   fTimeOfFlight = aStep->GetTrack()->GetGlobalTime();
 
   G4ThreeVector pos = aStep->GetPreStepPoint()->GetPosition();
-  G4ThreeVector momentum = aStep->GetPreStepPoint()->GetMomentumDirection();
+  // G4ThreeVector momentum = aStep->GetPreStepPoint()->GetMomentumDirection();
 
   fPosX = pos.x();
   fPosY = pos.y();
   fPosZ = pos.z();
-  fMomentumX = momentum.x();
-  fMomentumY = momentum.y();
-  fMomentumZ = momentum.z();
+  // fMomentumX = momentum.x();
+  // fMomentumY = momentum.y();
+  // fMomentumZ = momentum.z();
 
   fParticleType = aStep->GetTrack()->GetDefinition()->GetPDGEncoding();
 

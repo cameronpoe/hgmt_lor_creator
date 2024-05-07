@@ -36,10 +36,11 @@ void print_double(double numb, FILE *output) {
   fwrite(&numb, sizeof(double), 1, output);
 }
 prim_lor *create_prim_lor(annihilation *new_annihilation) {
-  hit *hit1 = initial_by_best_order(new_annihilation->photon1_path, time_FOM);
-  hit *hit2 = initial_by_best_order(new_annihilation->photon2_path, time_FOM);
-  // hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
-  // hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
+  // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
+  // time_FOM); hit *hit2 =
+  // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
+  hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
+  hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
   if (hit1 == new_annihilation->photon1_path->hits) {
     first_correct++;
     if (new_annihilation->photon1_path->has_first) {
@@ -129,9 +130,9 @@ event *read_event(FILE *source) {
   float x;
   float y;
   float z;
-  float mx;
-  float my;
-  float mz;
+  // float mx;
+  // float my;
+  // float mz;
   float tof;
   int particle_type;
   int track_id;
@@ -142,14 +143,14 @@ event *read_event(FILE *source) {
   worked += fread(&x, sizeof(float), 1, source);
   worked += fread(&y, sizeof(float), 1, source);
   worked += fread(&z, sizeof(float), 1, source);
-  worked += fread(&mx, sizeof(float), 1, source);
-  worked += fread(&my, sizeof(float), 1, source);
-  worked += fread(&mz, sizeof(float), 1, source);
+  // worked += fread(&mx, sizeof(float), 1, source);
+  // worked += fread(&my, sizeof(float), 1, source);
+  // worked += fread(&mz, sizeof(float), 1, source);
   worked += fread(&tof, sizeof(float), 1, source);
   worked += fread(&particle_type, sizeof(int), 1, source);
   worked += fread(&track_id, sizeof(int), 1, source);
 
-  if (worked != 11) {
+  if (worked != 8) {
     return NULL;
   }
 
@@ -158,15 +159,11 @@ event *read_event(FILE *source) {
   new_event->event_id = event_id;
   new_event->energy_deposit = energy_deposit;
   new_event->location = three_vec((double)x, (double)y, (double)z);
-  new_event->momentum = three_vec((double)mx, (double)my, (double)mz);
+  // new_event->momentum = three_vec((double)mx, (double)my, (double)mz);
   new_event->tof = (double)tof;
   new_event->particle_type = particle_type;
   new_event->track_id = track_id;
 
-  if (new_event->particle_type == 22) {
-    num_scatters++;
-    printm("Number of recorded gammas read: ", num_scatters, 1000000);
-  }
   return new_event;
 }
 event *read_gamma(FILE *source) {
@@ -175,10 +172,16 @@ event *read_gamma(FILE *source) {
     free(new_event);
     new_event = read_event(source);
   }
+  // printf("%i %i\n", new_event->track_id, new_event->event_id);
+  if (new_event != NULL) {
+    num_scatters++;
+    printm("Number of recorded gammas read: ", num_scatters, 1000000);
+  }
   return new_event;
 }
 
 uint is_scatter_detected(event *single_event) {
+  return 1;
   if (drand48() < linear_interpolation(eff_by_energy, E_min, E_max,
                                        single_event->energy_deposit)) {
     scatters_detected++;
@@ -214,7 +217,6 @@ hit *event_to_hit(event *single_event) {
 }
 photon_path *read_photon_path(FILE *source) {
   // reading all the scatters within the time window
-  event *first_event2 = NULL;
   llist *path = NULL;
   int num_hits = 0;
   photon_path *photon = (photon_path *)malloc(sizeof(photon_path));
@@ -223,17 +225,13 @@ photon_path *read_photon_path(FILE *source) {
     path = add_to_top(path, first_event);
     num_hits++;
   }
+  event *new_event = NULL;
   while (1) {
-    event *new_event = read_gamma(source);
-    if (new_event == NULL) {
-      break;
-    }
-    if (first_event->event_id != new_event->event_id ||
+    new_event = read_gamma(source);
+    if (new_event == NULL || first_event->event_id != new_event->event_id ||
         first_event->track_id != new_event->track_id) {
-      first_event2 = new_event;
       break;
-    }
-    if (is_scatter_detected(new_event)) {
+    } else if (is_scatter_detected(new_event)) {
       path = add_to_top(path, new_event);
       num_hits++;
     } else {
@@ -256,14 +254,15 @@ photon_path *read_photon_path(FILE *source) {
   if (!photon->has_first) {
     free(first_event);
   }
-  first_event = first_event2;
+  first_event = new_event;
   wipe_list(path);
   // returning
   return photon;
 }
 void skip_photon_path(FILE *source) {
   event *new_event = read_gamma(source);
-  while (new_event != NULL && new_event->track_id == first_event->track_id) {
+  while (new_event != NULL && new_event->track_id == first_event->track_id &&
+         new_event->event_id == first_event->event_id) {
     free(new_event);
     new_event = read_gamma(source);
   }
@@ -286,6 +285,7 @@ annihilation *read_annihilation(FILE *source) {
   }
   annihilation *photon_pair = (annihilation *)malloc(sizeof(annihilation));
   int event_id = first_event->event_id;
+  // printf("%i\n", event_id);
   if (skip_to_primary(source, event_id)) {
     if (error_debug == 1) {
       memcpy(error_debug_event1, first_event, sizeof(event));
@@ -387,9 +387,9 @@ int main(int argc, char **argv) {
       // printf("%i \n\n", new_annihilation->photon2_path.num_hits);
       prim_lor *primitive_lor = create_prim_lor(new_annihilation);
       if (primitive_lor != NULL) {
+        lors_created++;
         lor *new_lor = create_lor(primitive_lor);
         print_lor(new_lor, lor_output);
-        lors_created++;
         free(new_lor);
       }
       free(primitive_lor);

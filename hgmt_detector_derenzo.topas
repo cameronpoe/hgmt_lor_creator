@@ -1,8 +1,8 @@
 b:Ts/UseQt              = "False"
 sv:Ph/Default/Modules   = 2 "g4em-standard_opt4" "g4em-penelope"
-b:Ge/CheckForOverlaps   = "False"
+b:Ge/CheckForOverlaps   = "True"
 b:Ts/PauseBeforeQuit    = "False"
-i:Ts/NumberOfThreads    = -2
+i:Ts/NumberOfThreads    = 1
 i:Ts/Seed = 5
 
 i:Ts/ShowHistoryCountAtInterval = 100000

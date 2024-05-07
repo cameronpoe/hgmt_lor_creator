@@ -44,8 +44,8 @@ private:
   G4float fPosX;
   G4float fPosY;
   G4float fPosZ;
-  G4float fMomentumX;
-  G4float fMomentumY;
-  G4float fMomentumZ;
+  // G4float fMomentumX;
+  // G4float fMomentumY;
+  // G4float fMomentumZ;
 };
 #endif

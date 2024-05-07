@@ -23,7 +23,7 @@ double variance_dist(vec3d loc1, vec3d loc2, double d) {
   if (DETECTOR_SEGMENTATION) {
     double var_rad = DETECTOR_THICKNESS * DETECTOR_THICKNESS / 48.0;
   } else {
-    var_rad = SPC_UNC;
+    var_rad = SPC_UNC * SPC_UNC;
   }
   double var_tan = SPC_UNC * SPC_UNC;
   double cos_theta1 = loc1.x / rad1;
