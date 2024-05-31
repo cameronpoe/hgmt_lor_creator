@@ -34,16 +34,17 @@ def plot_histogram(doubles, xlabel, save_name, xmax, ymax):
     plt.ylim(0, ymax)
     current_date = dt.datetime.now().strftime("%Y-%m-%d")
     plt.text(
-        0.02,
+        0.98,
         0.98,
         f"{current_date}",
         transform=plt.gca().transAxes,
         fontsize=10,
         verticalalignment="top",
-        horizontalalignment="left",
+        horizontalalignment="right",
     )
     plt.gcf().canvas.get_default_filename = lambda: save_name
     plt.plot(bin_centers, normalized)
+    plt.savefig("full_diagnostics/" + save_name)
     plt.show()
 
 

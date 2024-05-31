@@ -1,4 +1,5 @@
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e1 -d
+echo "Running Full Diagnostics"
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e1 -d | tee full_diagnostics/detector_diagnostics.txt
 python3 plot_histogram.py debug.data Positional\ Error\ \(cm\) First\ Scatter\ Positional\ Error 20 2
 ./hgmt_debug debug.data 20 40 -hi | tee full_diagnostics/first_scatter_positional_error.txt
 ./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e3 -d
@@ -14,4 +15,5 @@ python3 plot_histogram.py debug.data Time\ Difference\ \(ns\) First\ Second\ Hit
 ./hgmt_debug debug.data 10 40 -hi | tee full_diagnostics/first_second_hit_time_difference.txt
 ./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e7 -d
 python3 plot_histogram.py debug.data Energy\ Deposit\ \(KeV\) Energy\ Deposit\ Distribution 511 0.01
-./hgmt_debug debug.data 520 52 -hi | tee full_diagnostics/first_scatter_energy_deposit.txt
+./hgmt_debug debug.data 520 104 -hi | tee full_diagnostics/first_scatter_energy_deposit.txt
+echo "All Tasks Complete"
