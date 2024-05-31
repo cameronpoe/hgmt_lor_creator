@@ -12,7 +12,7 @@
 #include "hgmt_structs.h"
 #include "vector_ops.h"
 #define TIME_SD_TOLERANCE 3
-#define OPTIMIZE 1
+#define OPTIMIZE 0
 double variance_dist(vec3d loc1, vec3d loc2, double d) {
   double delta_x = loc1.x - loc2.x;
   double delta_y = loc1.y - loc2.y;
@@ -76,15 +76,11 @@ double time_FOM(hit *hits, int *order, int num_hits) {
   }
   return FOM;
 }
-int compare_hits(const void *hit1, const void *hit2) {
-  return ((hit *)hit1)->tof > ((hit *)hit2)->tof;
-}
 hit *initial_by_best_order(photon_path *path,
                            double (*FOM)(hit *hits, int *order, int num_hits)) {
   int num_hits = path->num_hits;
   hit *hits = path->hits;
   if (OPTIMIZE) {
-    qsort(hits, num_hits, sizeof(hit), compare_hits);
     for (int i = 0; i < num_hits; i++) {
       if (hits[i].tof - hits[0].tof > TIME_SD_TOLERANCE * TIME_UNC) {
         num_hits = i + 1;

@@ -9,7 +9,7 @@
 #define SPD_LGHT 29.9792458 // cm/ns
 #define UNCERT_REP 30
 #define SPC_UNC 0.1
-#define TIME_UNC 0.042463 // ns, sigma (0.100 ns FWHM)
+#define TIME_UNC 0.1 // 0.042463 // ns, sigma (0.100 ns FWHM)
 #define DETECTOR_THICKNESS 2.54
 #define DETECTOR_SEGMENTATION 1
 typedef unsigned int uint;
@@ -26,6 +26,7 @@ typedef struct event_ {
 typedef struct hit_ {
   vec3d location;
   double tof;
+  uint first;
 } hit;
 
 typedef struct prim_lor_ {
@@ -43,6 +44,8 @@ typedef struct _photon_path {
   hit *hits;
   int num_hits;
   int has_first;
+  event *debug_path;
+  int num_events;
 } photon_path;
 typedef struct _annihilation {
   photon_path *photon1_path;

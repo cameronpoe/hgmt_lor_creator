@@ -18,16 +18,18 @@ uint scatters_detected = 0;
 uint annihilations_occured = 0;
 uint lors_created = 0;
 uint first_correct = 0;
+uint events_occurred = 0;
+uint paths_created = 0;
+uint first_detected = 0;
 uint first_guessed = 0;
 uint first_scatter_correct = 0;
 uint error_debug = 0;
+uint writing_to_lor = 1;
 event *first_event;
 double eff_by_energy[COLS];
 double E_max = 520.0;
 double E_min = 0.0;
 FILE *debug;
-event *error_debug_event1;
-event *error_debug_event2;
 void print_lor(lor *new_lor, FILE *output) {
   fwrite(new_lor, sizeof(lor), 1, output);
 }
@@ -36,12 +38,11 @@ void print_double(double numb, FILE *output) {
   fwrite(&numb, sizeof(double), 1, output);
 }
 prim_lor *create_prim_lor(annihilation *new_annihilation) {
-  // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
-  // time_FOM); hit *hit2 =
-  // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
-  hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
-  hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
-  if (hit1 == new_annihilation->photon1_path->hits) {
+  hit *hit1 = initial_by_best_order(new_annihilation->photon1_path, time_FOM);
+  hit *hit2 = initial_by_best_order(new_annihilation->photon2_path, time_FOM);
+  // hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
+  // hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
+  if (hit1->first) {
     first_correct++;
     if (new_annihilation->photon1_path->has_first) {
       first_scatter_correct++;
@@ -51,7 +52,7 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
                           new_annihilation->photon1_path->hits[0].location),
                  debug);
   }
-  if (hit2 == new_annihilation->photon2_path->hits) {
+  if (hit2->first) {
     first_correct++;
     if (new_annihilation->photon2_path->has_first) {
       first_scatter_correct++;
@@ -62,8 +63,14 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
                  debug);
   }
   if (error_debug == 1) {
-    print_double(vec_dist(error_debug_event1->location, hit1->location), debug);
-    print_double(vec_dist(error_debug_event2->location, hit2->location), debug);
+    print_double(
+        vec_dist(new_annihilation->photon1_path->debug_path[0].location,
+                 hit1->location),
+        debug);
+    print_double(
+        vec_dist(new_annihilation->photon2_path->debug_path[0].location,
+                 hit2->location),
+        debug);
   }
   first_guessed += 2;
   prim_lor *new_prim_lor = (prim_lor *)malloc(sizeof(prim_lor));
@@ -181,7 +188,6 @@ event *read_gamma(FILE *source) {
 }
 
 uint is_scatter_detected(event *single_event) {
-  return 1;
   if (drand48() < linear_interpolation(eff_by_energy, E_min, E_max,
                                        single_event->energy_deposit)) {
     scatters_detected++;
@@ -215,8 +221,13 @@ hit *event_to_hit(event *single_event) {
   new_hit->location = vec_add(new_hit->location, offset);
   return new_hit;
 }
+int compare_hits(const void *hit1, const void *hit2) {
+  return ((hit *)hit1)->tof > ((hit *)hit2)->tof;
+}
 photon_path *read_photon_path(FILE *source) {
   // reading all the scatters within the time window
+  llist *path_perfect = NULL; // error debug stuff
+  int num_events = 1;         // error debug stuff
   llist *path = NULL;
   int num_hits = 0;
   photon_path *photon = (photon_path *)malloc(sizeof(photon_path));
@@ -225,22 +236,35 @@ photon_path *read_photon_path(FILE *source) {
     path = add_to_top(path, first_event);
     num_hits++;
   }
+  if (error_debug) {
+    path_perfect = add_to_top(path_perfect, first_event);
+  }
   event *new_event = NULL;
   while (1) {
     new_event = read_gamma(source);
     if (new_event == NULL || first_event->event_id != new_event->event_id ||
         first_event->track_id != new_event->track_id) {
       break;
-    } else if (is_scatter_detected(new_event)) {
-      path = add_to_top(path, new_event);
-      num_hits++;
     } else {
-      free(new_event);
+      if (error_debug) {
+        path_perfect = add_to_top(path_perfect, new_event);
+        num_events++;
+      }
+      if (is_scatter_detected(new_event)) {
+        path = add_to_top(path, new_event);
+        num_hits++;
+      } else if (!error_debug) {
+        free(new_event);
+      }
     }
   }
   // generating the photon path
   photon->hits = (hit *)malloc(sizeof(hit) * num_hits);
   photon->num_hits = num_hits;
+  if (error_debug) {
+    photon->debug_path = (event *)malloc(sizeof(event) * num_events);
+    photon->num_events = num_events;
+  }
   // filling in all the values
   for (int i = num_hits - 1; i >= 0; i--) {
     hit *detector_hit = event_to_hit(path->data);
@@ -248,14 +272,70 @@ photon_path *read_photon_path(FILE *source) {
     free(detector_hit);
     if (i != 0) {
       path = path->down;
+      photon->hits[i].first = 0;
+    } else {
+      photon->hits[i].first = 1;
+    }
+  }
+  if (error_debug) {
+    for (int i = num_events - 1; i >= 0; i--) {
+      photon->debug_path[i] = *path_perfect->data;
+      if (i != 0) {
+        path_perfect = path_perfect->down;
+      }
     }
   }
   // freeing all the redundant data
-  if (!photon->has_first) {
-    free(first_event);
+  if (error_debug) {
+    wipe_list(path_perfect);
+    delete_list(path);
+  } else {
+    if (!photon->has_first) {
+      free(first_event);
+    }
+    wipe_list(path);
   }
   first_event = new_event;
-  wipe_list(path);
+  // sorting by detected time
+  qsort(photon->hits, num_hits, sizeof(hit), compare_hits);
+  // error debug stuff
+  events_occurred++;
+  if (num_hits > 0) {
+    paths_created++;
+  }
+  if (photon->has_first) {
+    first_detected++;
+  }
+  if (error_debug == 3) {
+    if (photon->num_events >= 2) {
+      print_double(vec_dist(photon->debug_path[0].location,
+                            photon->debug_path[1].location),
+                   debug);
+    }
+  }
+  if (error_debug == 4) {
+    if (photon->num_events >= 2) {
+      print_double(photon->debug_path[1].tof - photon->debug_path[0].tof,
+                   debug);
+    }
+  }
+  if (error_debug == 5) {
+    if (photon->num_hits >= 2) {
+      print_double(vec_dist(photon->hits[0].location, photon->hits[1].location),
+                   debug);
+    }
+  }
+  if (error_debug == 6) {
+    if (photon->num_hits >= 2) {
+      print_double(photon->hits[1].tof - photon->hits[0].tof, debug);
+    }
+  }
+  if (error_debug == 7) {
+    print_double(photon->debug_path[0].energy_deposit, debug);
+  }
+  if (error_debug == 8) {
+    print_double(num_hits, debug);
+  }
   // returning
   return photon;
 }
@@ -287,17 +367,11 @@ annihilation *read_annihilation(FILE *source) {
   int event_id = first_event->event_id;
   // printf("%i\n", event_id);
   if (skip_to_primary(source, event_id)) {
-    if (error_debug == 1) {
-      memcpy(error_debug_event1, first_event, sizeof(event));
-    }
     photon_pair->photon1_path = read_photon_path(source);
   } else {
     photon_pair->photon1_path = NULL;
   }
   if (skip_to_primary(source, event_id)) {
-    if (error_debug == 1) {
-      memcpy(error_debug_event2, first_event, sizeof(event));
-    }
     photon_pair->photon2_path = read_photon_path(source);
   } else {
     photon_pair->photon2_path = NULL;
@@ -312,10 +386,16 @@ void free_annihilation(annihilation *new_annihilation) {
   if (new_annihilation->photon1_path != NULL) {
     free(new_annihilation->photon1_path->hits);
     free(new_annihilation->photon1_path);
+    if (error_debug) {
+      free(new_annihilation->photon1_path->debug_path);
+    }
   }
   if (new_annihilation->photon2_path != NULL) {
     free(new_annihilation->photon2_path->hits);
     free(new_annihilation->photon2_path);
+    if (error_debug) {
+      free(new_annihilation->photon2_path->debug_path);
+    }
   }
   free(new_annihilation);
 }
@@ -334,17 +414,43 @@ int main(int argc, char **argv) {
     }
     if (strcmp(flags[i], "-e1") == 0) {
       printf("running with compton error debug\n");
-      error_debug_event1 = (event *)malloc(sizeof(event));
-      error_debug_event2 = (event *)malloc(sizeof(event));
       error_debug = 1;
     }
     if (strcmp(flags[i], "-e2") == 0) {
       printf("running with compton ordering error debug\n");
       error_debug = 2;
     }
+    if (strcmp(flags[i], "-e3") == 0) {
+      printf("running with scatter distance\n");
+      error_debug = 3;
+    }
+    if (strcmp(flags[i], "-e4") == 0) {
+      printf("running with scatter time difference\n");
+      error_debug = 4;
+    }
+    if (strcmp(flags[i], "-e5") == 0) {
+      printf("running with hit distance\n");
+      error_debug = 5;
+    }
+    if (strcmp(flags[i], "-e6") == 0) {
+      printf("running with hit time distance\n");
+      error_debug = 6;
+    }
+    if (strcmp(flags[i], "-e7") == 0) {
+      printf("running with energy distribution\n");
+      error_debug = 7;
+    }
+    if (strcmp(flags[i], "-e8") == 0) {
+      printf("running with chain length debug\n");
+      error_debug = 8;
+    }
+    if (strcmp(flags[i], "-d") == 0) {
+      printf("running in debug mode, won't write to a lor file\n");
+      writing_to_lor = 0;
+    }
   }
   // checks to make sure you have correct number of args
-  if (num_args(argc, argv) != 3) {
+  if (num_args(argc, argv) != 3 - !writing_to_lor) {
     printf("Incorrect number of arguments, three arguments required.\n");
     printf("Use the -h command to get options.\n\n");
     exit(1);
@@ -359,19 +465,23 @@ int main(int argc, char **argv) {
   printf("Done!\n\n");
 
   // opens up a .lor file to output each LOR into
-  char *lor_file_loc = (char *)malloc(sizeof(char) * (strlen(args[2]) + 10));
-  strcpy(lor_file_loc, args[2]);
-  lor_file_loc = strcat(lor_file_loc, ".lor");
-  FILE *lor_output = fopen(lor_file_loc, "wb");
-  if (lor_output == NULL) {
-    printf("Unable to open output file for writing\n");
-    return 1;
+  FILE *lor_output = NULL;
+  if (writing_to_lor) {
+    char *lor_file_loc = (char *)malloc(sizeof(char) * (strlen(args[2]) + 10));
+    strcpy(lor_file_loc, args[2]);
+    lor_file_loc = strcat(lor_file_loc, ".lor");
+    lor_output = fopen(lor_file_loc, "wb");
+    if (lor_output == NULL) {
+      printf("Unable to open output file for writing\n");
+      return 1;
+    }
   }
-
-  debug = fopen("debug.data", "wb");
-  if (debug == NULL) {
-    printf("Unable to open debug file for writing\n");
-    return 1;
+  if (error_debug) {
+    debug = fopen("debug.data", "wb");
+    if (debug == NULL) {
+      printf("Unable to open debug file for writing\n");
+      return 1;
+    }
   }
   FILE *phsp_file = fopen(args[0], "rb");
 
@@ -388,9 +498,11 @@ int main(int argc, char **argv) {
       prim_lor *primitive_lor = create_prim_lor(new_annihilation);
       if (primitive_lor != NULL) {
         lors_created++;
-        lor *new_lor = create_lor(primitive_lor);
-        print_lor(new_lor, lor_output);
-        free(new_lor);
+        if (writing_to_lor) {
+          lor *new_lor = create_lor(primitive_lor);
+          print_lor(new_lor, lor_output);
+          free(new_lor);
+        }
       }
       free(primitive_lor);
     }
@@ -407,6 +519,11 @@ int main(int argc, char **argv) {
          (double)lors_created / annihilations_occured);
   printf("First detected scatter correctness: %lf\n",
          (double)first_correct / first_guessed);
+  printf("Proportion of first scatters detected: %lf\n",
+         (double)first_detected / events_occurred);
+  printf("Proportion of first scatters detected in chains with atleast 1 "
+         "scatter detected: %lf\n",
+         (double)first_detected / paths_created);
   printf("First scatter correctness: %lf\n",
          (double)first_scatter_correct / first_guessed);
   return 0;

@@ -78,8 +78,8 @@ double read_double(FILE *input) {
   // make a new event to be passed out
   return num;
 }
-void error_debug(FILE *input) {
-  histogram *hist = new_histogram(0.0, 100.0, 40);
+void hist_debug(FILE *input, float max_value, int num_bins) {
+  histogram *hist = new_histogram(0.0, max_value, num_bins);
 
   double num = read_double(input);
   double tot = 0;
@@ -89,13 +89,13 @@ void error_debug(FILE *input) {
     add_to_histogram(num, hist);
     num = read_double(input);
   }
-  printf("number of lors: %i\n", num_datas);
-  printf("average error: %lf\n", (double)tot / num_datas);
+  printf("number of data points: %i\n", num_datas);
+  printf("average: %lf\n", (double)tot / num_datas);
   print_histogram(hist);
 }
 event *read_history(int event_id, FILE *source) {
   event *new_event = read_gamma(source);
-  while (new_event->event_id == event_id && new_event != NULL) {
+  while (new_event != NULL && new_event->event_id == event_id) {
     free(new_event);
     new_event = read_gamma(source);
   }
@@ -105,33 +105,30 @@ void phsp_diagnostics(FILE *source) {
   event *new_event = read_gamma(source);
   int num_events = 0;
   while (new_event != NULL) {
+    int id = new_event->event_id;
     free(new_event);
-    event_id = read_history(event_id, source);
+    new_event = read_history(id, source);
     num_events++;
   }
   printf("number of events: %i\n", num_events);
 }
 int main(int argc, char **argv) {
-  debug_out = fopen("debug_out.data", "wb");
-  if (debug_out == NULL) {
-    printf("Unable to open output file for writing\n");
-    return 1;
-  }
   char **flags = get_flags(argc, argv);
   char **args = get_args(argc, argv);
   // defines the help function and how to call it (by using -h or --help)
   for (int i = 0; i < num_flags(argc, argv); i++) {
     if (strcmp(flags[i], "-h") == 0) {
-      printf("Usage: ./hgmt_debug -task debug_file_loc arg2\n");
+      printf("Usage: ./hgmt_debug -task debug_file_loc extra_args\n");
       printf("-h: print this help\n");
-      printf("-hi: run with histogram\n");
+      printf("-hi: run with histogram, requires two extra args [max_value] and "
+             "[num_bins]\n");
       printf("-p: run diagnostics on phsp file\n");
       exit(0);
     }
     if (strcmp(flags[i], "-hi") == 0) {
       printf("running histogram\n");
       FILE *input = fopen(args[0], "rb");
-      error_debug(input);
+      hist_debug(input, atoi(args[1]), atoi(args[2]));
     }
     if (strcmp(flags[i], "-p") == 0) {
       printf("diagnostics on phsp file\n");
