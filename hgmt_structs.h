@@ -22,11 +22,12 @@ typedef struct event_ {
   double tof;
   int particle_type;
   int track_id;
+  int detector_id;
 } event;
 typedef struct hit_ {
   vec3d location;
   double tof;
-  uint first;
+  uint first; // flag if the hit was the first detected
 } hit;
 
 typedef struct prim_lor_ {

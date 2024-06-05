@@ -28,7 +28,7 @@ HGMTNTuple::HGMTNTuple(TsParameterManager *pM, TsMaterialManager *mM,
   // SetSurfaceScorer();
 
   fNtuple->RegisterColumnI(&fEvent, "Event Number");
-  fNtuple->RegisterColumnD(&fDeposit, "Energy Deposited", "keV");
+  fNtuple->RegisterColumnD(&fEnergy, "Energy Deposit", "keV");
   fNtuple->RegisterColumnF(&fPosX, "Position X", "cm");
   fNtuple->RegisterColumnF(&fPosY, "Position Y", "cm");
   fNtuple->RegisterColumnF(&fPosZ, "Position Z", "cm");
@@ -39,14 +39,17 @@ HGMTNTuple::HGMTNTuple(TsParameterManager *pM, TsMaterialManager *mM,
   fNtuple->RegisterColumnF(&fTimeOfFlight, "Time of Flight", "ns");
   fNtuple->RegisterColumnI(&fParticleType, "Particle Type (in PDG Format)");
   // fNtuple->RegisterColumnS(&fOriginProcessName, "Origin Process");
-  // fNtuple->RegisterColumnI(&fOriginProcessID, "Origin Process (int)");
+  //  fNtuple->RegisterColumnI(&fOriginProcessID, "Origin Process (int)");
   fNtuple->RegisterColumnI(&fTrackID, "Particle ID");
 }
 
 HGMTNTuple::~HGMTNTuple() { ; }
 
 G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
-  if (!fIsActive) {
+  fEnergy = aStep->GetPreStepPoint()->GetKineticEnergy() -
+            aStep->GetPostStepPoint()->GetKineticEnergy();
+  fParticleType = aStep->GetTrack()->GetDefinition()->GetPDGEncoding();
+  if (!fIsActive || (fParticleType == 22 && fEnergy == 0)) {
     fSkippedWhileInactive++;
     return false;
   }
@@ -56,13 +59,11 @@ G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
   G4StepPoint *theStepPoint = 0;
   // this has weird units or something
   // fDeposit = aStep->GetTotalEnergyDeposit();
-  fDeposit = aStep->GetPreStepPoint()->GetKineticEnergy() -
-             aStep->GetPostStepPoint()->GetKineticEnergy();
-  ;
 
   fTimeOfFlight = aStep->GetTrack()->GetGlobalTime();
 
-  G4ThreeVector pos = aStep->GetPreStepPoint()->GetPosition();
+  // fEnergy = aStep->GetPreStepPoint()->GetKineticEnergy();
+  G4ThreeVector pos = aStep->GetPostStepPoint()->GetPosition();
   // G4ThreeVector momentum = aStep->GetPreStepPoint()->GetMomentumDirection();
 
   fPosX = pos.x();
@@ -71,8 +72,6 @@ G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
   // fMomentumX = momentum.x();
   // fMomentumY = momentum.y();
   // fMomentumZ = momentum.z();
-
-  fParticleType = aStep->GetTrack()->GetDefinition()->GetPDGEncoding();
 
   fEvent = GetEventID();
 

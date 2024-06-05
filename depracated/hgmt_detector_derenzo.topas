@@ -1,0 +1,82 @@
+b:Ts/UseQt              = "False"
+sv:Ph/Default/Modules   = 2 "g4em-standard_opt4" "g4em-penelope"
+b:Ge/CheckForOverlaps   = "True"
+b:Ts/PauseBeforeQuit    = "False"
+i:Ts/NumberOfThreads    = 1
+i:Ts/Seed = 5
+
+i:Ts/ShowHistoryCountAtInterval = 100000
+s:Gr/ViewA/Type = "OpenGL"
+b:Gr/ViewA/IncludeAxes = "True"
+b:Gr/ViewA/Active = "True"
+
+
+
+b:Ma/B33/BuildFromMaterials = "True"
+sv:Ma/B33/Components = 4 "G4_SILICON_DIOXIDE" "G4_BORON_OXIDE" "G4_SODIUM_MONOXIDE" "G4_ALUMINUM_OXIDE"
+uv:Ma/B33/Fractions = 4 0.81 0.13 0.04 0.02
+d:Ma/B33/Density = 1.67 g/cm3
+
+
+
+includeFile = ./derenzo_300keV_100.topas
+
+s:Ge/Derenzo/Parent = "AirBox"
+
+
+background_e = 1 #30
+rod_e = 3 #00090
+
+
+
+
+s:Ge/World/Material  = "Vacuum"
+d:Ge/World/HLX       = 10.0 m
+d:Ge/World/HLY       = 10.0 m
+d:Ge/World/HLZ       = 10.0 m
+b:Ge/World/Invisible = "TRUE"
+
+s:Ge/AirBox/Material	= "Air"
+s:Ge/AirBox/Type    	= "TsBox"
+d:Ge/AirBox/HLX	= 10.0 m
+d:Ge/AirBox/HLY	= 10.0 m
+d:Ge/AirBox/HLZ	= 10.0 m
+s:Ge/AirBox/Parent	= "world"
+b:Ge/AirBox/Invisible	= "true"
+
+
+
+
+
+
+
+s:Ge/DetectorVolume/Type	= "TsCylinder"
+s:Ge/DetectorVolume/Parent	= "AirBox"
+d:Ge/DetectorVolume/HL		= 1 m
+d:Ge/DetectorVolume/RMin	= 0.45 m
+d:Ge/DetectorVolume/RMax	= 0.75 m
+s:Ge/DetectorVolume/Material	= "B33"
+#d:Ge/DetectorVolume/MaxStepSize	= 1. mm
+d:Ge/DetectorVolume/MinStepSize 	= 0.01 mm
+
+
+#s:So/Positrons/Type				= "Volumetric"
+#s:So/Positrons/Component			= "SphereSource"
+#s:So/Positrons/ActiveMaterial			= "G4_WATER"
+#s:So/Positrons/BeamParticle			= "e+"
+#d:So/Positrons/BeamEnergy			= 0.6335 MeV
+#b:So/Positrons/RecursivelyIncludeChildren 	= "True"
+#ic:So/Positrons/NumberOfHistoriesInRun 	= 1000000
+
+
+
+s:Sc/HGMTDerenzo/Quantity			= "HGMTNTuple"
+s:Sc/HGMTDerenzo/Component			= "DetectorVolume"
+# s:Sc/HGMTDerenzo/Component			= "DetectorVolume"
+b:Sc/HGMTDerenzo/PropagateToChildren	= "True"
+b:Sc/HGMTDerenzo/IncludeTimeOfFlight = "True"
+b:Sc/HGMTDerenzo/IncludeRunID = "True"
+b:Sc/HGMTDerenzo/IncludeEventID = "True"
+b:Sc/HGMTDerenzo/IncludeTrackID = "True"
+s:Sc/HGMTDerenzo/OutputType   = "binary" 
+s:Sc/HGMTDerenzo/IfOutputFileAlreadyExists  = "Overwrite"

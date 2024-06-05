@@ -29,7 +29,7 @@ public:
 private:
   // Output variables
   G4int fParticleType;
-  G4double fDeposit;
+  G4double fEnergy;
   G4bool fIsNewHistory;
   G4float fTimeOfFlight;
   G4int fEvent;

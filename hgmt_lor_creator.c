@@ -23,6 +23,7 @@ uint paths_created = 0;
 uint first_detected = 0;
 uint first_guessed = 0;
 uint first_scatter_correct = 0;
+uint first_scatter_in_detector = 0;
 uint error_debug = 0;
 uint writing_to_lor = 1;
 event *first_event;
@@ -30,6 +31,11 @@ double eff_by_energy[COLS];
 double E_max = 520.0;
 double E_min = 0.0;
 FILE *debug;
+double detector_locations[12] = {
+    45,    47.54, 50.08, 52.62, 55.16, 57.7, 60.24,
+    62.78, 65.32, 67.86, 70.4,  72.94}; // inner radii of detectors, MUST BE
+//  SORTED
+// double detector_locations[6] = {45.0, 50, 55, 60, 65, 70};
 void print_lor(lor *new_lor, FILE *output) {
   fwrite(new_lor, sizeof(lor), 1, output);
 }
@@ -130,6 +136,18 @@ int read_eff(FILE *source) {
   }
   return 0;
 }
+// gets the detector an event happened in. return -1 if it didn't happen in
+// detector
+int get_detector(vec3d location) {
+  double rad_dist = radial_dist(location);
+  for (int i = 0; i < sizeof(detector_locations) / sizeof(double); i++) {
+    if (rad_dist > detector_locations[i] &&
+        rad_dist < detector_locations[i] + DETECTOR_THICKNESS) {
+      return i;
+    }
+  }
+  return -1;
+}
 event *read_event(FILE *source) {
 
   uint event_id;
@@ -170,6 +188,7 @@ event *read_event(FILE *source) {
   new_event->tof = (double)tof;
   new_event->particle_type = particle_type;
   new_event->track_id = track_id;
+  new_event->detector_id = get_detector(new_event->location);
 
   return new_event;
 }
@@ -188,7 +207,8 @@ event *read_gamma(FILE *source) {
 }
 
 uint is_scatter_detected(event *single_event) {
-  if (drand48() < linear_interpolation(eff_by_energy, E_min, E_max,
+  if (single_event->detector_id != -1 &&
+      drand48() < linear_interpolation(eff_by_energy, E_min, E_max,
                                        single_event->energy_deposit)) {
     scatters_detected++;
     return 1;
@@ -208,10 +228,9 @@ hit *event_to_hit(event *single_event) {
   if (DETECTOR_SEGMENTATION) {
     // we move the radial component to the midpoint of the detector which it hit
     new_hit->location = radial_scale(
-        new_hit->location,
-        DETECTOR_THICKNESS * ((double)((int)(rad_dist / DETECTOR_THICKNESS))) /
-                rad_dist +
-            DETECTOR_THICKNESS / (2 * rad_dist));
+        new_hit->location, (detector_locations[single_event->detector_id] +
+                            DETECTOR_THICKNESS / 2) /
+                               rad_dist);
   } else {
     vec3d r_hat =
         vec_scale(three_vec(new_hit->location.x, new_hit->location.y, 0),
@@ -232,6 +251,9 @@ photon_path *read_photon_path(FILE *source) {
   int num_hits = 0;
   photon_path *photon = (photon_path *)malloc(sizeof(photon_path));
   photon->has_first = is_scatter_detected(first_event);
+  if (first_event->detector_id != -1) {
+    first_scatter_in_detector++;
+  }
   if (photon->has_first) {
     path = add_to_top(path, first_event);
     num_hits++;
@@ -253,6 +275,8 @@ photon_path *read_photon_path(FILE *source) {
       if (is_scatter_detected(new_event)) {
         path = add_to_top(path, new_event);
         num_hits++;
+        if (error_debug == 9)
+          print_double((double)new_event->detector_id, debug);
       } else if (!error_debug) {
         free(new_event);
       }
@@ -411,40 +435,34 @@ int main(int argc, char **argv) {
       printf("-e1: run with compton error debug\n");
       printf("-e2: run with compton ordering error debug\n");
       exit(0);
-    }
-    if (strcmp(flags[i], "-e1") == 0) {
+    } else if (strcmp(flags[i], "-e1") == 0) {
       printf("running with compton error debug\n");
       error_debug = 1;
-    }
-    if (strcmp(flags[i], "-e2") == 0) {
+    } else if (strcmp(flags[i], "-e2") == 0) {
       printf("running with compton ordering error debug\n");
       error_debug = 2;
-    }
-    if (strcmp(flags[i], "-e3") == 0) {
+    } else if (strcmp(flags[i], "-e3") == 0) {
       printf("running with scatter distance\n");
       error_debug = 3;
-    }
-    if (strcmp(flags[i], "-e4") == 0) {
+    } else if (strcmp(flags[i], "-e4") == 0) {
       printf("running with scatter time difference\n");
       error_debug = 4;
-    }
-    if (strcmp(flags[i], "-e5") == 0) {
+    } else if (strcmp(flags[i], "-e5") == 0) {
       printf("running with hit distance\n");
       error_debug = 5;
-    }
-    if (strcmp(flags[i], "-e6") == 0) {
+    } else if (strcmp(flags[i], "-e6") == 0) {
       printf("running with hit time distance\n");
       error_debug = 6;
-    }
-    if (strcmp(flags[i], "-e7") == 0) {
+    } else if (strcmp(flags[i], "-e7") == 0) {
       printf("running with energy distribution\n");
       error_debug = 7;
-    }
-    if (strcmp(flags[i], "-e8") == 0) {
+    } else if (strcmp(flags[i], "-e8") == 0) {
       printf("running with chain length debug\n");
       error_debug = 8;
-    }
-    if (strcmp(flags[i], "-d") == 0) {
+    } else if (strcmp(flags[i], "-e9") == 0) {
+      printf("running with detector activity debug\n");
+      error_debug = 9;
+    } else if (strcmp(flags[i], "-d") == 0) {
       printf("running in debug mode, won't write to a lor file\n");
       writing_to_lor = 0;
     }
@@ -521,6 +539,8 @@ int main(int argc, char **argv) {
          (double)first_correct / first_guessed);
   printf("Proportion of first scatters detected: %lf\n",
          (double)first_detected / events_occurred);
+  printf("Proportion of first scatters occurred in a detector: %lf\n",
+         (double)first_scatter_in_detector / events_occurred);
   printf("Proportion of first scatters detected in chains with atleast 1 "
          "scatter detected: %lf\n",
          (double)first_detected / paths_created);
