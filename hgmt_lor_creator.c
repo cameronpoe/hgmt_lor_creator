@@ -159,7 +159,7 @@ event *read_event(FILE *source) {
   // float my;
   // float mz;
   float tof;
-  int particle_type;
+  int parent_id;
   int track_id;
   int worked = 0;
 
@@ -172,7 +172,7 @@ event *read_event(FILE *source) {
   // worked += fread(&my, sizeof(float), 1, source);
   // worked += fread(&mz, sizeof(float), 1, source);
   worked += fread(&tof, sizeof(float), 1, source);
-  worked += fread(&particle_type, sizeof(int), 1, source);
+  worked += fread(&parent_id, sizeof(int), 1, source);
   worked += fread(&track_id, sizeof(int), 1, source);
 
   if (worked != 8) {
@@ -186,23 +186,10 @@ event *read_event(FILE *source) {
   new_event->location = three_vec((double)x, (double)y, (double)z);
   // new_event->momentum = three_vec((double)mx, (double)my, (double)mz);
   new_event->tof = (double)tof;
-  new_event->particle_type = particle_type;
+  new_event->parent_id = parent_id;
   new_event->track_id = track_id;
   new_event->detector_id = get_detector(new_event->location);
-
-  return new_event;
-}
-event *read_gamma(FILE *source) {
-  event *new_event = read_event(source);
-  while (new_event != NULL && new_event->particle_type != 22) {
-    free(new_event);
-    new_event = read_event(source);
-  }
-  // printf("%i %i\n", new_event->track_id, new_event->event_id);
-  if (new_event != NULL) {
-    num_scatters++;
-    printm("Number of recorded gammas read: ", num_scatters, 1000000);
-  }
+  num_scatters++;
   return new_event;
 }
 
@@ -245,86 +232,64 @@ int compare_hits(const void *hit1, const void *hit2) {
 }
 photon_path *read_photon_path(FILE *source) {
   // reading all the scatters within the time window
+  // scatters are given backwards so it is difficult to figure stuff out
   llist *path_perfect = NULL; // error debug stuff
-  int num_events = 1;         // error debug stuff
-  llist *path = NULL;
-  int num_hits = 0;
   photon_path *photon = (photon_path *)malloc(sizeof(photon_path));
-  photon->has_first = is_scatter_detected(first_event);
-  if (first_event->detector_id != -1) {
-    first_scatter_in_detector++;
+  photon->num_events = 0;
+  photon->num_hits = 0;
+  event *new_event = first_event;
+  // constructing list of events
+  while (new_event != NULL && first_event->event_id == new_event->event_id &&
+         first_event->parent_id == new_event->parent_id) {
+    path_perfect = add_to_top(path_perfect, new_event);
+    photon->num_events++;
+    new_event = read_event(source);
   }
-  if (photon->has_first) {
-    path = add_to_top(path, first_event);
-    num_hits++;
-  }
-  if (error_debug) {
-    path_perfect = add_to_top(path_perfect, first_event);
-  }
-  event *new_event = NULL;
-  while (1) {
-    new_event = read_gamma(source);
-    if (new_event == NULL || first_event->event_id != new_event->event_id ||
-        first_event->track_id != new_event->track_id) {
-      break;
-    } else {
-      if (error_debug) {
-        path_perfect = add_to_top(path_perfect, new_event);
-        num_events++;
-      }
-      if (is_scatter_detected(new_event)) {
-        path = add_to_top(path, new_event);
-        num_hits++;
-        if (error_debug == 9)
-          print_double((double)new_event->detector_id, debug);
-      } else if (!error_debug) {
-        free(new_event);
-      }
+  photon->debug_path = (event *)malloc(sizeof(event) * photon->num_events);
+  for (int i = 0; i < photon->num_events; i++) {
+    photon->debug_path[i] = *path_perfect->data;
+    if (i != photon->num_events - 1) {
+      path_perfect = path_perfect->down;
     }
   }
-  // generating the photon path
-  photon->hits = (hit *)malloc(sizeof(hit) * num_hits);
-  photon->num_hits = num_hits;
-  if (error_debug) {
-    photon->debug_path = (event *)malloc(sizeof(event) * num_events);
-    photon->num_events = num_events;
-  }
-  // filling in all the values
-  for (int i = num_hits - 1; i >= 0; i--) {
-    hit *detector_hit = event_to_hit(path->data);
-    photon->hits[i] = *detector_hit;
-    free(detector_hit);
-    if (i != 0) {
-      path = path->down;
-      photon->hits[i].first = 0;
-    } else {
-      photon->hits[i].first = 1;
+  // determining which hits are detected
+  int *detected = (int *)calloc(photon->num_events, sizeof(int));
+  for (int i = 0; i < photon->num_events; i++) {
+    if (is_scatter_detected(&photon->debug_path[i])) {
+      detected[i] = 1;
+      photon->num_hits++;
     }
-  }
-  if (error_debug) {
-    for (int i = num_events - 1; i >= 0; i--) {
-      photon->debug_path[i] = *path_perfect->data;
-      if (i != 0) {
-        path_perfect = path_perfect->down;
+    if (i == 0) {
+      photon->has_first = *detected;
+      if (photon->debug_path->detector_id != -1) {
+        first_scatter_in_detector++;
       }
     }
   }
+  // constructing list of hits
+  photon->hits = (hit *)malloc(sizeof(hit) * photon->num_hits);
+  int j = 0;
+  for (int i = 0; i < photon->num_events; i++) {
+    if (detected[i]) {
+      hit *detector_hit = event_to_hit(&photon->debug_path[i]);
+      photon->hits[j] = *detector_hit;
+      photon->hits[j].first = j == 0;
+      free(detector_hit);
+      j++;
+      if (error_debug == 9)
+        print_double((double)photon->debug_path[i].detector_id, debug);
+    }
+  }
+  free(detected);
   // freeing all the redundant data
-  if (error_debug) {
-    wipe_list(path_perfect);
-    delete_list(path);
-  } else {
-    if (!photon->has_first) {
-      free(first_event);
-    }
-    wipe_list(path);
-  }
+  wipe_list(path_perfect);
   first_event = new_event;
   // sorting by detected time
-  qsort(photon->hits, num_hits, sizeof(hit), compare_hits);
+  if (photon->num_hits > 0)
+    qsort(photon->hits, photon->num_hits, sizeof(hit), compare_hits);
   // error debug stuff
   events_occurred++;
-  if (num_hits > 0) {
+  if (photon->num_hits > 0) {
     paths_created++;
   }
   if (photon->has_first) {
@@ -358,28 +323,21 @@ photon_path *read_photon_path(FILE *source) {
     print_double(photon->debug_path[0].energy_deposit, debug);
   }
   if (error_debug == 8) {
-    print_double(num_hits, debug);
+    print_double(photon->num_hits, debug);
   }
   // returning
   return photon;
 }
 void skip_photon_path(FILE *source) {
-  event *new_event = read_gamma(source);
-  while (new_event != NULL && new_event->track_id == first_event->track_id &&
+  event *new_event = read_event(source);
+  while (new_event != NULL && new_event->parent_id == first_event->parent_id &&
          new_event->event_id == first_event->event_id) {
     free(new_event);
-    new_event = read_gamma(source);
+    new_event = read_event(source);
   }
   free(first_event);
   first_event = new_event;
   return;
-}
-int skip_to_primary(FILE *source, int event_id) {
-  while (first_event != NULL && first_event->event_id == event_id &&
-         first_event->track_id != 2 && first_event->track_id != 3) {
-    skip_photon_path(source);
-  }
-  return first_event != NULL && first_event->event_id == event_id;
 }
 annihilation *read_annihilation(FILE *source) {
   // this is so complicated because we only get photon paths with trackid 2 or 3
@@ -390,18 +348,14 @@ annihilation *read_annihilation(FILE *source) {
   annihilation *photon_pair = (annihilation *)malloc(sizeof(annihilation));
   int event_id = first_event->event_id;
   // printf("%i\n", event_id);
-  if (skip_to_primary(source, event_id)) {
-    photon_pair->photon1_path = read_photon_path(source);
-  } else {
-    photon_pair->photon1_path = NULL;
-  }
-  if (skip_to_primary(source, event_id)) {
+  photon_pair->photon1_path = read_photon_path(source);
+  if (first_event->event_id == event_id) {
     photon_pair->photon2_path = read_photon_path(source);
   } else {
     photon_pair->photon2_path = NULL;
   }
   while (first_event != NULL && first_event->event_id == event_id) {
-    skip_photon_path(source);
+    // skip_photon_path(source);
   }
   // printf("\n");
   return photon_pair;
@@ -504,7 +458,7 @@ int main(int argc, char **argv) {
   FILE *phsp_file = fopen(args[0], "rb");
 
   printf("Constructing the hits...\n");
-  first_event = read_gamma(phsp_file);
+  first_event = read_event(phsp_file);
   annihilation *new_annihilation = read_annihilation(phsp_file);
   while (new_annihilation != NULL) {
     annihilations_occured++;

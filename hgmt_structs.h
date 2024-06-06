@@ -20,7 +20,7 @@ typedef struct event_ {
   vec3d location;
   // vec3d momentum;
   double tof;
-  int particle_type;
+  int parent_id;
   int track_id;
   int detector_id;
 } event;

@@ -41,6 +41,7 @@ private:
   G4int fOriginProcessID;
   G4int fPrevEventID;
   G4int fTrackID;
+  G4int fParentID;
   G4float fPosX;
   G4float fPosY;
   G4float fPosZ;

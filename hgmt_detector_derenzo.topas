@@ -122,7 +122,7 @@ includeFile = ./derenzo_300keV_100.topas
 
 s:Ge/Derenzo/Parent = "AirBox"
 background_e = 1 #30
-rod_e = 0 #00090
+rod_e = 3 #00090
 
 
 
@@ -146,7 +146,7 @@ i:Ts/Seed = 26
 s:Sc/HGMTDerenzo/Quantity			= "HGMTNTuple"
 s:Sc/HGMTDerenzo/Component			= "DetectorVolume"
 b:Sc/HGMTDerenzo/PropagateToChildren	= "True"
-s:Sc/HGMTDerenzo/OutputType			= "ASCII"
+s:Sc/HGMTDerenzo/OutputType			= "binary"
 s:Sc/HGMTDerenzo/IfOutputFileAlreadyExists	= "Overwrite"
 
 s:Gr/ViewA/Type           = "OpenGL"
