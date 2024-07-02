@@ -117,3 +117,15 @@ hit *initial_by_best_time(photon_path *path) {
   }
   return initial;
 }
+hit *initial_by_least_radial(photon_path *path) {
+  double best_rad = radial_dist(path->hits[0].location);
+  hit *initial = &path->hits[0];
+  for (int i = 1; i < path->num_hits; i++) {
+    double new_rad = radial_dist(path->hits[i].location);
+    if (new_rad < best_rad) {
+      best_rad = new_rad;
+      initial = &path->hits[i];
+    }
+  }
+  return initial;
+}

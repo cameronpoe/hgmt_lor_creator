@@ -44,10 +44,11 @@ void print_double(double numb, FILE *output) {
   fwrite(&numb, sizeof(double), 1, output);
 }
 prim_lor *create_prim_lor(annihilation *new_annihilation) {
-  hit *hit1 = initial_by_best_order(new_annihilation->photon1_path, time_FOM);
-  hit *hit2 = initial_by_best_order(new_annihilation->photon2_path, time_FOM);
-  // hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
-  // hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
+  // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
+  // time_FOM); hit *hit2 =
+  // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
+  hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
+  hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
   if (hit1->first) {
     first_correct++;
     if (new_annihilation->photon1_path->has_first) {
@@ -190,6 +191,7 @@ event *read_event(FILE *source) {
   new_event->track_id = track_id;
   new_event->detector_id = get_detector(new_event->location);
   num_scatters++;
+  printm("Number of scatters read: ", num_scatters, 1000000);
   return new_event;
 }
 

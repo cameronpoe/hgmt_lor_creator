@@ -12,9 +12,12 @@
 //
 
 #include "HGMTNTuple.hh"
+#include <cstdlib>
+#include <vector>
 
 #include "G4Event.hh"
 #include "G4PSDirectionFlag.hh"
+#include "G4ThreeVector.hh"
 #include "G4VProcess.hh"
 #include "TsTrackInformation.hh"
 
@@ -32,10 +35,10 @@ HGMTNTuple::HGMTNTuple(TsParameterManager *pM, TsMaterialManager *mM,
   fNtuple->RegisterColumnF(&fPosX, "Position X", "cm");
   fNtuple->RegisterColumnF(&fPosY, "Position Y", "cm");
   fNtuple->RegisterColumnF(&fPosZ, "Position Z", "cm");
-  // fNtuple->RegisterColumnF(&fMomentumX, "Momentum X", "");
-  // fNtuple->RegisterColumnF(&fMomentumY, "Momentum Y", "");
-  // fNtuple->RegisterColumnF(&fMomentumZ, "Momentum Z", "");
-  //  fNtuple->RegisterColumnF(&fWeight, "Weight", "");
+  // fNtuple->RegisterColumnF(&fParentMomentumX, "Momentum X", "");
+  // fNtuple->RegisterColumnF(&fParentMomentumY, "Momentum Y", "");
+  // fNtuple->RegisterColumnF(&fParentMomentumZ, "Momentum Z", "");
+  //   fNtuple->RegisterColumnF(&fWeight, "Weight", "");
   fNtuple->RegisterColumnF(&fTimeOfFlight, "Time of Flight", "ns");
   // fNtuple->RegisterColumnI(&fParticleType, "Particle Type (in PDG Format)");
   // fNtuple->RegisterColumnS(&fOriginProcessName, "Origin Process");
@@ -47,10 +50,11 @@ HGMTNTuple::HGMTNTuple(TsParameterManager *pM, TsMaterialManager *mM,
 HGMTNTuple::~HGMTNTuple() { ; }
 
 G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
-  fParticleType = aStep->GetTrack()->GetDefinition()->GetPDGEncoding();
-  fParentID = aStep->GetTrack()->GetParentID();
+  G4Track *track = aStep->GetTrack();
+  fParticleType = track->GetDefinition()->GetPDGEncoding();
+  fParentID = track->GetParentID();
   if (!fIsActive || fParticleType != 11 || (fParentID != 2 && fParentID != 3) ||
-      aStep->GetTrack()->GetCurrentStepNumber() != 1) {
+      track->GetCurrentStepNumber() != 1) {
     fSkippedWhileInactive++;
     return false;
   }
@@ -60,24 +64,19 @@ G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
   G4StepPoint *theStepPoint = 0;
   // this has weird units or something
   // fDeposit = aStep->GetTotalEnergyDeposit();
-  fTimeOfFlight = aStep->GetTrack()->GetGlobalTime();
+  fTimeOfFlight = track->GetGlobalTime();
 
   // fEnergy = aStep->GetPreStepPoint()->GetKineticEnergy();
-  G4ThreeVector pos = aStep->GetPreStepPoint()->GetPosition();
+  G4ThreeVector pos = aStep->GetPostStepPoint()->GetPosition();
   // G4ThreeVector momentum = aStep->GetPreStepPoint()->GetMomentumDirection();
 
   fPosX = pos.x();
   fPosY = pos.y();
   fPosZ = pos.z();
-  // fMomentumX = momentum.x();
-  // fMomentumY = momentum.y();
-  // fMomentumZ = momentum.z();
 
   fEvent = GetEventID();
 
   fTrackID = aStep->GetTrack()->GetTrackID();
-
-  const G4VProcess *originProcess = aStep->GetTrack()->GetCreatorProcess();
 
   // Check if this is a new history
   // fRunID   = GetRunID();
