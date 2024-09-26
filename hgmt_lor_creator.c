@@ -47,8 +47,8 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
   // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
   // time_FOM); hit *hit2 =
   // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
-  hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
-  hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
+  hit *hit1 = initial_by_least_radial(new_annihilation->photon1_path);
+  hit *hit2 = initial_by_least_radial(new_annihilation->photon2_path);
   if (hit1->first) {
     first_correct++;
     if (new_annihilation->photon1_path->has_first) {
@@ -280,6 +280,8 @@ photon_path *read_photon_path(FILE *source) {
       j++;
       if (error_debug == 9)
         print_double((double)photon->debug_path[i].detector_id, debug);
+      if (error_debug == 10 && i == 0)
+        print_double((double)photon->debug_path[i].detector_id, debug);
     }
   }
   free(detected);
@@ -418,6 +420,9 @@ int main(int argc, char **argv) {
     } else if (strcmp(flags[i], "-e9") == 0) {
       printf("running with detector activity debug\n");
       error_debug = 9;
+    } else if (strcmp(flags[i], "-e10") == 0) {
+      printf("running with detector activity first scatter debug\n");
+      error_debug = 10;
     } else if (strcmp(flags[i], "-d") == 0) {
       printf("running in debug mode, won't write to a lor file\n");
       writing_to_lor = 0;

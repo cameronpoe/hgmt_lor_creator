@@ -21,7 +21,7 @@ b:Ts/PauseBeforeQuit = "false"
 b:Ma/B33/BuildFromMaterials = "True"
 sv:Ma/B33/Components = 4 "G4_SILICON_DIOXIDE" "G4_BORON_OXIDE" "G4_SODIUM_MONOXIDE" "G4_ALUMINUM_OXIDE"
 uv:Ma/B33/Fractions = 4 0.81 0.13 0.04 0.02
-d:Ma/B33/Density = 1.67 g/cm3
+d:Ma/B33/Density = 2.23 g/cm3#1.67 g/cm3
 s:Ge/DetectorVolume/Type	= "TsCylinder"
 s:Ge/DetectorVolume/Parent = "AirBox"
 d:Ge/DetectorVolume/HL		= 1 m
@@ -149,18 +149,13 @@ b:Sc/HGMTDerenzo/PropagateToChildren	= "True"
 s:Sc/HGMTDerenzo/OutputType			= "binary"
 s:Sc/HGMTDerenzo/IfOutputFileAlreadyExists	= "Overwrite"
 
-s:Sc/DetectorIn/Surface      = "Detector_0/InnerCurvedSurface"
-s:Sc/DetectorIn/Quantity     = "PhaseSpace"
-s:Sc/DetectorIn/OutputType   = "binary" 
-s:Sc/DetectorIn/IfOutputFileAlreadyExists  = "Overwrite"
-
 s:Gr/ViewA/Type           = "OpenGL"
 sv:Gr/ViewA/VisibleWorlds = 1 "All"
 i:Gr/ViewA/WindowSizeX    = 900
 i:Gr/ViewA/WindowSizeY    = 900
 d:Gr/ViewA/Theta          = 45 deg
 d:Gr/ViewA/Phi            = 0 deg
-u:Gr/ViewA/Zoom = 5
+u:Gr/ViewA/Zoom	   = 5
 
 s:Gr/ViewB/Type           = "OpenGL"
 sv:Gr/ViewB/VisibleWorlds = 1 "All"

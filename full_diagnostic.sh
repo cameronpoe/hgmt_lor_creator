@@ -18,5 +18,8 @@ python3 plot_histogram.py debug.data Energy\ Deposit\ \(KeV\) Energy\ Deposit\ D
 ./hgmt_debug debug.data 520 104 -hi | tee full_diagnostics/first_scatter_energy_deposit.txt
 ./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e9 -d
 ./hgmt_debug debug.data 12 12 -hi | tee full_diagnostics/detector_activity.txt
-python3 plot_bars.py full_diagnostics/detector_activity.txt
+python3 plot_bars.py full_diagnostics/detector_activity.txt Detector\ ID Detector\ Activity
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e10 -d
+./hgmt_debug debug.data 12 12 -hi | tee full_diagnostics/detector_activity_first.txt
+python3 plot_bars.py full_diagnostics/detector_activity.txt Detector\ ID Detector\ Activity\ First
 echo "All Tasks Complete"
