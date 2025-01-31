@@ -254,6 +254,11 @@ photon_path *read_photon_path(FILE *source) {
       path_perfect = path_perfect->down;
     }
   }
+  if (error_debug == 11) {
+    if (photon->num_events >= 1) {
+      print_double(photon->debug_path[0].detector_id + 1, debug);
+    }
+  }
   // determining which hits are detected
   int *detected = (int *)calloc(photon->num_events, sizeof(int));
   for (int i = 0; i < photon->num_events; i++) {
@@ -423,6 +428,9 @@ int main(int argc, char **argv) {
     } else if (strcmp(flags[i], "-e10") == 0) {
       printf("running with detector activity first scatter debug\n");
       error_debug = 10;
+    } else if (strcmp(flags[i], "-e11") == 0) {
+      printf("running with first scatter detector debug\n");
+      error_debug = 11;
     } else if (strcmp(flags[i], "-d") == 0) {
       printf("running in debug mode, won't write to a lor file\n");
       writing_to_lor = 0;

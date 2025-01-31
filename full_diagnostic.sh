@@ -1,25 +1,28 @@
 echo "Running Full Diagnostics"
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e1 -d | tee full_diagnostics/detector_diagnostics.txt
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e1 -d | tee full_diagnostics/detector_diagnostics.txt
 python3 plot_histogram.py debug.data Positional\ Error\ \(cm\) First\ Scatter\ Positional\ Error 20 2
 ./hgmt_debug debug.data 20 40 -hi | tee full_diagnostics/first_scatter_positional_error.txt
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e3 -d
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e3 -d
 python3 plot_histogram.py debug.data Distance\ \(cm\) First\ Second\ Scatter\ Distance 20 0.2
 ./hgmt_debug debug.data 20 40 -hi | tee full_diagnostics/first_second_scatter_distance.txt
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e4 -d
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e4 -d
 python3 plot_histogram.py debug.data Time\ Difference\ \(ns\) First\ Second\ Scatter\ Time\ Difference 0.9 7
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e5 -d
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e5 -d
 python3 plot_histogram.py debug.data Distance\ \(cm\) First\ Second\ Hit\ Distance 25 0.25
 ./hgmt_debug debug.data 25 50 -hi | tee full_diagnostics/first_second_hit_distance.txt
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e6 -d
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e6 -d
 python3 plot_histogram.py debug.data Time\ Difference\ \(ns\) First\ Second\ Hit\ Time\ Difference 6 1.75
 ./hgmt_debug debug.data 10 40 -hi | tee full_diagnostics/first_second_hit_time_difference.txt
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e7 -d
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e7 -d
 python3 plot_histogram.py debug.data Energy\ Deposit\ \(KeV\) Energy\ Deposit\ Distribution 511 0.01
 ./hgmt_debug debug.data 520 104 -hi | tee full_diagnostics/first_scatter_energy_deposit.txt
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e9 -d
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e9 -d
 ./hgmt_debug debug.data 12 12 -hi | tee full_diagnostics/detector_activity.txt
 python3 plot_bars.py full_diagnostics/detector_activity.txt Detector\ ID Detector\ Activity
-./hgmt_lor_creator other_images/HGMTDerenzo.phsp b33_effs.csv -e10 -d
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e10 -d
 ./hgmt_debug debug.data 12 12 -hi | tee full_diagnostics/detector_activity_first.txt
 python3 plot_bars.py full_diagnostics/detector_activity.txt Detector\ ID Detector\ Activity\ First
+./hgmt_lor_creator other_images/HGMTDerenzo.phsp kapton_effs.csv -e11 -d
+./hgmt_debug debug.data 13 13 -hi | tee full_diagnostics/first_scatter_detector.txt
+python3 plot_bars.py full_diagnostics/first_scatter_detector.txt Detector\ ID Scatters\ Occured
 echo "All Tasks Complete"

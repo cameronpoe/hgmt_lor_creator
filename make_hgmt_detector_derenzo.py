@@ -11,9 +11,7 @@ file_name = "hgmt_detector_derenzo.topas"
 dead_material = "Air"
 active_material = "B33"
 detector_thickness = 2.54  # cm
-detector_inner_radii = np.array([45] * 11) + 2.54 * np.array(
-    range(11)
-)  # MUST BE SORTED
+detector_inner_radii = np.array([45] * 11) + 5 * np.array(range(11))  # MUST BE SORTED
 detector_volume_inner_rad = 45  # cm
 detector_volume_outer_rad = 75  # cm
 ####################################
@@ -61,7 +59,7 @@ s:Ge/Detector_{i}/Type = "TsCylinder"
 s:Ge/Detector_{i}/Material = "{active_material}"
 s:Ge/Detector_{i}/Parent = "DetectorVolume"
 d:Ge/Detector_{i}/Rmin = {detector_inner_radii[i]} cm 
-d:Ge/Detector_{i}/RMax	= {detector_inner_radii[i]+detector_thickness} cm
+d:Ge/Detector_{i}/RMax	= {detector_inner_radii[i] + detector_thickness} cm
 d:Ge/Detector_{i}/HL = 1 m
 d:Ge/Detector_{i}/MinStepSize 	= 0.01 mm
 """
