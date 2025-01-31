@@ -8,7 +8,7 @@ from vispy.visuals.transforms import STTransform
 # Parameters
 detector_length = 200  # cm
 detector_thickness = 2.54  # cm
-detector_inner_radii = np.array([45] * 11) + 5 * np.array(range(11))  # MUST BE SORTED
+detector_inner_radii = np.array([45] * 5) + 5 * np.array(range(5))  # MUST BE SORTED
 detector_volume_inner_rad = 45  # cm
 detector_volume_outer_rad = 75  # cm
 
@@ -53,11 +53,12 @@ def create_cylinder_mesh(inner_radius, outer_radius, height, num_segments):
     return np.array(vertices), np.array(faces)
 
 
+# Create a canvas
 # Create a canvas and view
 canvas = scene.SceneCanvas(keys="interactive", bgcolor="white")
 view = canvas.central_widget.add_view()
 # Set up the camera
-view.camera = scene.TurntableCamera(elevation=30, azimuth=30, distance=1000)
+view.camera = scene.TurntableCamera(elevation=30, azimuth=30, distance=10000, fov=0.0)
 
 
 def draw_cylinder(inner_radius, outer_radius, height, num_segments):
@@ -70,6 +71,7 @@ def draw_cylinder(inner_radius, outer_radius, height, num_segments):
     cylinder_mesh = Mesh(
         vertices=vertices, faces=faces, color=Color("lightblue", alpha=0.5)
     )
+    # Make stuff see through
     view.add(cylinder_mesh)
 
     # Create wireframe lines along the length of the cylinder
@@ -113,29 +115,57 @@ def draw_cylinder(inner_radius, outer_radius, height, num_segments):
     view.add(wireframe)
 
 
-def draw_sphere(center, detected, radius=3.0):
+def draw_sphere(center, color, radius=1):
     sphere = Sphere(
         radius,
         method="latitude",
         parent=view.scene,
-        color=Color("green" if detected else "grey"),
+        color=color,
     )
     sphere.transform = STTransform(translate=center)
+    sphere.set_gl_state(
+        "translucent",
+        depth_test=False,
+        blend=True,
+        blend_func=("src_alpha", "one_minus_src_alpha"),
+    )
     view.add(sphere)
 
 
 def draw_path(points, detected):
-    path = Line(pos=points, color="red", width=3)
-    if len(points) >= 1:
-        for i in range(1, len(points)):
-            draw_sphere(points[i], detected[i])
-
+    path = Line(pos=points, color="red", width=1)
+    path.set_gl_state(
+        "translucent",
+        depth_test=False,
+        blend=True,
+        blend_func=("src_alpha", "one_minus_src_alpha"),
+    )
+    for i in range(1, len(points)):
+        draw_sphere(points[i], Color("green" if detected[i] else "grey"))
     view.add(path)
+
+
+def draw_annihilation(path1, detected1, path2, detected2, origin):
+    draw_path([origin] + path1, [0] + detected1)
+    draw_path([origin] + path2, [0] + detected2)
+    draw_sphere(origin, Color("red"))
 
 
 for inner_radius in detector_inner_radii:
     draw_cylinder(inner_radius, inner_radius + detector_thickness, detector_length, 30)
-draw_path([(0, 0, 0), (0, 200, 0), (0, 0, 300)], [0, 0, 1])
+origin = (-15.505946, 33.101066, 14.267038)
+path1 = [(24.692972, 45.146507, 19.498425), (21.201054, 56.841789, 30.257233)]
+path2 = [
+    (-39.940784, 25.779266, 11.087149),
+    (-39.570919, 22.475040, 9.805506),
+    (52.030170, -6.920190, -28.633856),
+    (51.959389, -6.434876, -28.646063),
+    (55.376598, -5.862780, -32.032188),
+    (60.668129, -0.803248, -37.574165),
+]
+detected1 = [1, 1]
+detected2 = [1, 1, 1, 1, 1, 1]
+draw_annihilation(path1, detected1, path2, detected2, origin)
 # Show the canvas
 canvas.show()
 

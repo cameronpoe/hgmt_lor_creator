@@ -27,7 +27,7 @@ typedef struct event_ {
 typedef struct hit_ {
   vec3d location;
   double tof;
-  uint first; // flag if the hit was the first detected
+  event *source;
 } hit;
 
 typedef struct prim_lor_ {
@@ -44,12 +44,12 @@ typedef struct _lor {
 typedef struct _photon_path {
   hit *hits;
   int num_hits;
-  int has_first;
-  event *debug_path;
+  event *events;
   int num_events;
 } photon_path;
 typedef struct _annihilation {
   photon_path *photon1_path;
   photon_path *photon2_path;
+  vec3d center;
 } annihilation;
 #endif

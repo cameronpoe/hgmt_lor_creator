@@ -49,42 +49,13 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
   // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
   hit *hit1 = initial_by_least_radial(new_annihilation->photon1_path);
   hit *hit2 = initial_by_least_radial(new_annihilation->photon2_path);
-  if (hit1->first) {
-    first_correct++;
-    if (new_annihilation->photon1_path->has_first) {
-      first_scatter_correct++;
-    }
-  } else if (error_debug == 2) {
-    print_double(vec_dist(hit1->location,
-                          new_annihilation->photon1_path->hits[0].location),
-                 debug);
-  }
-  if (hit2->first) {
-    first_correct++;
-    if (new_annihilation->photon2_path->has_first) {
-      first_scatter_correct++;
-    }
-  } else if (error_debug == 2) {
-    print_double(vec_dist(hit2->location,
-                          new_annihilation->photon2_path->hits[0].location),
-                 debug);
-  }
-  if (error_debug == 1) {
-    print_double(
-        vec_dist(new_annihilation->photon1_path->debug_path[0].location,
-                 hit1->location),
-        debug);
-    print_double(
-        vec_dist(new_annihilation->photon2_path->debug_path[0].location,
-                 hit2->location),
-        debug);
-  }
-  first_guessed += 2;
+
   prim_lor *new_prim_lor = (prim_lor *)malloc(sizeof(prim_lor));
   new_prim_lor->hit1 = hit1;
   new_prim_lor->hit2 = hit2;
   return new_prim_lor;
 }
+
 lor *create_lor(prim_lor *primitive_lor) {
 
   vec3d a = primitive_lor->hit1->location;
@@ -116,6 +87,7 @@ lor *create_lor(prim_lor *primitive_lor) {
 
   return new;
 }
+
 double linear_interpolation(double nums[COLS], double min, double max,
                             double value) {
   double i = (COLS - 1) * (value - min) / (max - min);
@@ -211,6 +183,7 @@ hit *event_to_hit(event *single_event) {
   vec3d offset = vec_add(vec_scale(z_hat, gaussian(SPC_UNC, 30)),
                          vec_scale(circ_hat, gaussian(SPC_UNC, 30)));
   hit *new_hit = (hit *)malloc(sizeof(hit));
+  new_hit->source = single_event;
   new_hit->location = single_event->location;
   new_hit->tof = single_event->tof + gaussian(TIME_UNC, 30);
   double rad_dist = radial_dist(new_hit->location);
@@ -247,30 +220,19 @@ photon_path *read_photon_path(FILE *source) {
     photon->num_events++;
     new_event = read_event(source);
   }
-  photon->debug_path = (event *)malloc(sizeof(event) * photon->num_events);
+  photon->events = (event *)malloc(sizeof(event) * photon->num_events);
   for (int i = 0; i < photon->num_events; i++) {
-    photon->debug_path[i] = *path_perfect->data;
+    photon->events[i] = *path_perfect->data;
     if (i != photon->num_events - 1) {
       path_perfect = path_perfect->down;
-    }
-  }
-  if (error_debug == 11) {
-    if (photon->num_events >= 1) {
-      print_double(photon->debug_path[0].detector_id + 1, debug);
     }
   }
   // determining which hits are detected
   int *detected = (int *)calloc(photon->num_events, sizeof(int));
   for (int i = 0; i < photon->num_events; i++) {
-    if (is_scatter_detected(&photon->debug_path[i])) {
+    if (is_scatter_detected(&photon->events[i])) {
       detected[i] = 1;
       photon->num_hits++;
-    }
-    if (i == 0) {
-      photon->has_first = *detected;
-      if (photon->debug_path->detector_id != -1) {
-        first_scatter_in_detector++;
-      }
     }
   }
   // constructing list of hits
@@ -278,15 +240,10 @@ photon_path *read_photon_path(FILE *source) {
   int j = 0;
   for (int i = 0; i < photon->num_events; i++) {
     if (detected[i]) {
-      hit *detector_hit = event_to_hit(&photon->debug_path[i]);
+      hit *detector_hit = event_to_hit(&photon->events[i]);
       photon->hits[j] = *detector_hit;
-      photon->hits[j].first = j == 0;
       free(detector_hit);
       j++;
-      if (error_debug == 9)
-        print_double((double)photon->debug_path[i].detector_id, debug);
-      if (error_debug == 10 && i == 0)
-        print_double((double)photon->debug_path[i].detector_id, debug);
     }
   }
   free(detected);
@@ -296,57 +253,8 @@ photon_path *read_photon_path(FILE *source) {
   // sorting by detected time
   if (photon->num_hits > 0)
     qsort(photon->hits, photon->num_hits, sizeof(hit), compare_hits);
-  // error debug stuff
-  events_occurred++;
-  if (photon->num_hits > 0) {
-    paths_created++;
-  }
-  if (photon->has_first) {
-    first_detected++;
-  }
-  if (error_debug == 3) {
-    if (photon->num_events >= 2) {
-      print_double(vec_dist(photon->debug_path[0].location,
-                            photon->debug_path[1].location),
-                   debug);
-    }
-  }
-  if (error_debug == 4) {
-    if (photon->num_events >= 2) {
-      print_double(photon->debug_path[1].tof - photon->debug_path[0].tof,
-                   debug);
-    }
-  }
-  if (error_debug == 5) {
-    if (photon->num_hits >= 2) {
-      print_double(vec_dist(photon->hits[0].location, photon->hits[1].location),
-                   debug);
-    }
-  }
-  if (error_debug == 6) {
-    if (photon->num_hits >= 2) {
-      print_double(photon->hits[1].tof - photon->hits[0].tof, debug);
-    }
-  }
-  if (error_debug == 7) {
-    print_double(photon->debug_path[0].energy_deposit, debug);
-  }
-  if (error_debug == 8) {
-    print_double(photon->num_hits, debug);
-  }
   // returning
   return photon;
-}
-void skip_photon_path(FILE *source) {
-  event *new_event = read_event(source);
-  while (new_event != NULL && new_event->parent_id == first_event->parent_id &&
-         new_event->event_id == first_event->event_id) {
-    free(new_event);
-    new_event = read_event(source);
-  }
-  free(first_event);
-  first_event = new_event;
-  return;
 }
 annihilation *read_annihilation(FILE *source) {
   // this is so complicated because we only get photon paths with trackid 2 or 3
@@ -354,37 +262,64 @@ annihilation *read_annihilation(FILE *source) {
   if (first_event == NULL) {
     return NULL;
   }
-  annihilation *photon_pair = (annihilation *)malloc(sizeof(annihilation));
+  annihilation *new_annihilation = (annihilation *)malloc(sizeof(annihilation));
   int event_id = first_event->event_id;
   // printf("%i\n", event_id);
-  photon_pair->photon1_path = read_photon_path(source);
+  new_annihilation->photon1_path = read_photon_path(source);
   if (first_event->event_id == event_id) {
-    photon_pair->photon2_path = read_photon_path(source);
+    new_annihilation->photon2_path = read_photon_path(source);
+    vec3d a = new_annihilation->photon1_path->events->location;
+    vec3d b = new_annihilation->photon2_path->events->location;
+    vec3d c = vec_sub(a, b);
+    vec3d center = vec_add(b, vec_scale(c, 0.5));
+    vec3d c_hat = vec_norm(c);
+    double delta_t = -(new_annihilation->photon1_path->events->tof -
+                       new_annihilation->photon2_path->events->tof);
+    vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
+    vec3d annihilation_loc = vec_add(center, displacement_from_center);
+    new_annihilation->center = annihilation_loc;
   } else {
-    photon_pair->photon2_path = NULL;
+    new_annihilation->photon2_path = NULL;
   }
-  while (first_event != NULL && first_event->event_id == event_id) {
-    // skip_photon_path(source);
-  }
-  // printf("\n");
-  return photon_pair;
+  return new_annihilation;
 }
 void free_annihilation(annihilation *new_annihilation) {
   if (new_annihilation->photon1_path != NULL) {
     free(new_annihilation->photon1_path->hits);
     free(new_annihilation->photon1_path);
-    if (error_debug) {
-      free(new_annihilation->photon1_path->debug_path);
-    }
+    free(new_annihilation->photon1_path->events);
   }
   if (new_annihilation->photon2_path != NULL) {
     free(new_annihilation->photon2_path->hits);
     free(new_annihilation->photon2_path);
-    if (error_debug) {
-      free(new_annihilation->photon2_path->debug_path);
-    }
+    free(new_annihilation->photon2_path->events);
   }
   free(new_annihilation);
+}
+// provide debug statistics
+void debug_annihilation(annihilation *new_annihilation) {
+  printf("%i\n", num_scatters);
+  if (new_annihilation->photon1_path == NULL ||
+      new_annihilation->photon2_path == NULL) {
+    return;
+  }
+  printf("%lf %lf %lf \n", new_annihilation->center.x,
+         new_annihilation->center.y, new_annihilation->center.z);
+  printf("\n");
+  for (int i = 0; i < new_annihilation->photon1_path->num_events; i++) {
+    printf("%lf %lf %lf \n",
+           new_annihilation->photon1_path->events[i].location.x,
+           new_annihilation->photon1_path->events[i].location.y,
+           new_annihilation->photon1_path->events[i].location.z);
+  }
+  printf("\n");
+  for (int i = 0; i < new_annihilation->photon2_path->num_events; i++) {
+    printf("%lf %lf %lf \n",
+           new_annihilation->photon2_path->events[i].location.x,
+           new_annihilation->photon2_path->events[i].location.y,
+           new_annihilation->photon2_path->events[i].location.z);
+  }
+  exit(0);
 }
 int main(int argc, char **argv) {
   char **flags = get_flags(argc, argv);
@@ -463,12 +398,10 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  if (error_debug) {
-    debug = fopen("debug.data", "wb");
-    if (debug == NULL) {
-      printf("Unable to open debug file for writing\n");
-      return 1;
-    }
+  debug = fopen("debug.data", "wb");
+  if (debug == NULL) {
+    printf("Unable to open debug file for writing\n");
+    return 1;
   }
   FILE *phsp_file = fopen(args[0], "rb");
 
@@ -493,6 +426,7 @@ int main(int argc, char **argv) {
       }
       free(primitive_lor);
     }
+    debug_annihilation(new_annihilation);
     free_annihilation(new_annihilation);
     new_annihilation = read_annihilation(phsp_file);
   }

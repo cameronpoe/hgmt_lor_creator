@@ -11,7 +11,7 @@ file_name = "hgmt_detector_derenzo.topas"
 dead_material = "Air"
 active_material = "B33"
 detector_thickness = 2.54  # cm
-detector_inner_radii = np.array([45] * 11) + 5 * np.array(range(11))  # MUST BE SORTED
+detector_inner_radii = np.array([45] * 6) + 5 * np.array(range(6))  # MUST BE SORTED
 detector_volume_inner_rad = 45  # cm
 detector_volume_outer_rad = 75  # cm
 ####################################

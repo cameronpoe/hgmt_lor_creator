@@ -78,46 +78,6 @@ d:Ge/Detector_5/RMax	= 72.54 cm
 d:Ge/Detector_5/HL = 1 m
 d:Ge/Detector_5/MinStepSize 	= 0.01 mm
 
-s:Ge/Detector_6/Type = "TsCylinder"
-s:Ge/Detector_6/Material = "B33"
-s:Ge/Detector_6/Parent = "DetectorVolume"
-d:Ge/Detector_6/Rmin = 75 cm 
-d:Ge/Detector_6/RMax	= 77.54 cm
-d:Ge/Detector_6/HL = 1 m
-d:Ge/Detector_6/MinStepSize 	= 0.01 mm
-
-s:Ge/Detector_7/Type = "TsCylinder"
-s:Ge/Detector_7/Material = "B33"
-s:Ge/Detector_7/Parent = "DetectorVolume"
-d:Ge/Detector_7/Rmin = 80 cm 
-d:Ge/Detector_7/RMax	= 82.54 cm
-d:Ge/Detector_7/HL = 1 m
-d:Ge/Detector_7/MinStepSize 	= 0.01 mm
-
-s:Ge/Detector_8/Type = "TsCylinder"
-s:Ge/Detector_8/Material = "B33"
-s:Ge/Detector_8/Parent = "DetectorVolume"
-d:Ge/Detector_8/Rmin = 85 cm 
-d:Ge/Detector_8/RMax	= 87.54 cm
-d:Ge/Detector_8/HL = 1 m
-d:Ge/Detector_8/MinStepSize 	= 0.01 mm
-
-s:Ge/Detector_9/Type = "TsCylinder"
-s:Ge/Detector_9/Material = "B33"
-s:Ge/Detector_9/Parent = "DetectorVolume"
-d:Ge/Detector_9/Rmin = 90 cm 
-d:Ge/Detector_9/RMax	= 92.54 cm
-d:Ge/Detector_9/HL = 1 m
-d:Ge/Detector_9/MinStepSize 	= 0.01 mm
-
-s:Ge/Detector_10/Type = "TsCylinder"
-s:Ge/Detector_10/Material = "B33"
-s:Ge/Detector_10/Parent = "DetectorVolume"
-d:Ge/Detector_10/Rmin = 95 cm 
-d:Ge/Detector_10/RMax	= 97.54 cm
-d:Ge/Detector_10/HL = 1 m
-d:Ge/Detector_10/MinStepSize 	= 0.01 mm
-
 includeFile = ./derenzo_300keV_100.topas
 
 s:Ge/Derenzo/Parent = "AirBox"
