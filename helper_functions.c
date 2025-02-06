@@ -1,5 +1,6 @@
 #include "helper_functions.h"
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,8 +38,7 @@ int num_flags(int argc, char **argv) {
 }
 char **get_args(int argc, char **argv) {
   char **args = malloc(sizeof(char *) * num_args(argc, argv));
-  int j = 0;
-  for (int i = 1; i < argc; i++) {
+  for (int i = 1, j = 0; i < argc; i++) {
     if ('-' != argv[i][0]) {
       int len = strlen(argv[i]) + 1;
       args[j] = malloc(sizeof(char) * len);
@@ -48,10 +48,10 @@ char **get_args(int argc, char **argv) {
   }
   return args;
 }
+
 char **get_flags(int argc, char **argv) {
   char **flags = malloc(sizeof(char *) * num_flags(argc, argv));
-  int j = 0;
-  for (int i = 1; i < argc; i++) {
+  for (int i = 1, j = 0; i < argc; i++) {
     if ('-' == argv[i][0]) {
       int len = strlen(argv[i]) + 1;
       flags[j] = malloc(sizeof(char) * len);

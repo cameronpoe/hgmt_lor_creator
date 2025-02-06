@@ -1,4 +1,5 @@
 import numpy as np
+from numpy._core.defchararray import center
 from vispy import scene, geometry
 from vispy.scene.visuals import Mesh, Line, Sphere
 from vispy.color import Color
@@ -13,10 +14,79 @@ detector_volume_inner_rad = 45  # cm
 detector_volume_outer_rad = 75  # cm
 
 
-# Create cylinder mesh
-def create_cylinder_mesh(inner_radius, outer_radius, height, num_segments):
+def read_file(filename):
+    with open(filename, "r") as file:
+        file_content = file.read()
+    groups = file_content.strip().split("\n\n")
+
+    # Initialize the result lists
+    result = []
+
+    for group in groups[:3]:
+        # Split each group into lines and convert to tuples of floats
+        tuples = [tuple(map(float, line.split())) for line in group.strip().split("\n")]
+        result.append(tuples)
+    for group in groups[-2:]:
+        detected = [int(bit) for bit in group if bit in "01"]
+        result.append(detected)
+
+    return result[0][0], result[1], result[2], result[3], result[4]
+
+
+def create_cylinder_mesh(radius, length, num_segments):
     vertices = []
     faces = []
+    edges = []
+
+    # Generate vertices for the cylinder
+    for i in range(num_segments):
+        theta = 2 * np.pi * i / num_segments
+        x = radius * np.cos(theta)
+        y = radius * np.sin(theta)
+
+        # Bottom vertex
+        vertices.append([x, y, -length / 2])
+        # Top vertex
+        vertices.append([x, y, length / 2])
+
+    # Generate faces for the bottom and top caps
+    bottom_center = len(vertices)
+    top_center = bottom_center + 1
+    vertices.append([0, 0, -length / 2])  # Bottom center
+    vertices.append([0, 0, length / 2])  # Top center
+    # Generate faces for the sides
+    for i in range(num_segments):
+        i0 = 2 * i
+        i1 = 2 * ((i + 1) % num_segments)
+        faces += [
+            [i0, i1, i1 + 1],
+            [i0, i1 + 1, i0 + 1],
+            [bottom_center, i0, i1],
+            [top_center, i1 + 1, i0 + 1],
+        ]
+        edges += [[i0 + 1, i1 + 1], [i0, i1], [i0, i0 + 1]]
+
+    return np.array(vertices), np.array(faces), np.array(edges)
+
+
+def draw_cylinder(radius, length, num_segments):
+    # Create the cylinder mesh
+    vertices, faces, edges = create_cylinder_mesh(radius, length, num_segments)
+
+    # Create the solid cylinder mesh visual
+    cylinder_mesh = Mesh(vertices=vertices, faces=faces, color=Color("lightblue"))
+    wireframe = visuals.Line(
+        pos=vertices, connect=edges, color=Color("black"), method="gl"
+    )
+    view.add(wireframe)
+    view.add(cylinder_mesh)
+
+
+# Create tube mesh
+def create_tube_mesh(inner_radius, outer_radius, length, num_segments):
+    vertices = []
+    faces = []
+    edges = []
 
     # Generate vertices for inner and outer surfaces
     for i in range(num_segments):
@@ -27,30 +97,38 @@ def create_cylinder_mesh(inner_radius, outer_radius, height, num_segments):
         y_outer = outer_radius * np.sin(theta)
 
         # Bottom vertices
-        vertices.append([x_inner, y_inner, -height / 2])
-        vertices.append([x_outer, y_outer, -height / 2])
+        vertices.append([x_inner, y_inner, -length / 2])
+        vertices.append([x_outer, y_outer, -length / 2])
         # Top vertices
-        vertices.append([x_inner, y_inner, height / 2])
-        vertices.append([x_outer, y_outer, height / 2])
+        vertices.append([x_inner, y_inner, length / 2])
+        vertices.append([x_outer, y_outer, length / 2])
 
     # Generate faces for the sides
     for i in range(num_segments):
         i0 = 4 * i
         i1 = 4 * ((i + 1) % num_segments)
-        # Inner face
-        faces.append([i0, i1, i0 + 2])
-        faces.append([i1, i1 + 2, i0 + 2])
-        # Outer face
-        faces.append([i0 + 1, i1 + 1, i0 + 3])
-        faces.append([i1 + 1, i1 + 3, i0 + 3])
-        # Bottom face
-        faces.append([i0, i1, i0 + 1])
-        faces.append([i1, i1 + 1, i0 + 1])
-        # Top face
-        faces.append([i0 + 2, i1 + 2, i0 + 3])
-        faces.append([i1 + 2, i1 + 3, i0 + 3])
+        # Faces
+        faces += [
+            [i0, i1, i1 + 2],
+            [i0, i0 + 2, i1 + 2],
+            [i0 + 1, i1 + 1, i1 + 3],
+            [i0 + 1, i0 + 3, i1 + 3],
+            [i0, i1, i0 + 1],
+            [i1, i1 + 1, i0 + 1],
+            [i0 + 2, i1 + 2, i0 + 3],
+            [i1 + 2, i1 + 3, i0 + 3],
+        ]
+        # Edges
+        edges += [
+            [i0, i0 + 2],
+            [i0 + 3, i0 + 1],
+            [i0, i1],
+            [i0 + 1, i1 + 1],
+            [i0 + 2, i1 + 2],
+            [i0 + 3, i1 + 3],
+        ]
 
-    return np.array(vertices), np.array(faces)
+    return np.array(vertices), np.array(faces), np.array(edges)
 
 
 # Create a canvas
@@ -61,58 +139,19 @@ view = canvas.central_widget.add_view()
 view.camera = scene.TurntableCamera(elevation=30, azimuth=30, distance=10000, fov=0.0)
 
 
-def draw_cylinder(inner_radius, outer_radius, height, num_segments):
-    # Create the cylinder mesh
-    vertices, faces = create_cylinder_mesh(
-        inner_radius, outer_radius, height, num_segments
+def draw_tube(inner_radius, outer_radius, length, num_segments):
+    # Create the tube mesh
+    vertices, faces, edges = create_tube_mesh(
+        inner_radius, outer_radius, length, num_segments
     )
 
-    # Create the solid cylinder mesh visual
-    cylinder_mesh = Mesh(
-        vertices=vertices, faces=faces, color=Color("lightblue", alpha=0.5)
+    # Create the solid tube mesh visual
+    tube_mesh = Mesh(vertices=vertices, faces=faces, color=Color("lightyellow"))
+    wireframe = visuals.Line(
+        pos=vertices, connect=edges, color=Color("black"), method="gl"
     )
-    # Make stuff see through
-    view.add(cylinder_mesh)
-
-    # Create wireframe lines along the length of the cylinder
-    wireframe_vertices = []
-    for i in range(num_segments):
-        theta = 2 * np.pi * i / num_segments
-        x_inner = inner_radius * np.cos(theta)
-        y_inner = inner_radius * np.sin(theta)
-        x_outer = outer_radius * np.cos(theta)
-        y_outer = outer_radius * np.sin(theta)
-
-        # Bottom to top lines for inner and outer surfaces
-        wireframe_vertices.append([x_inner, y_inner, -height / 2])
-        wireframe_vertices.append([x_inner, y_inner, height / 2])
-        wireframe_vertices.append([x_outer, y_outer, -height / 2])
-        wireframe_vertices.append([x_outer, y_outer, height / 2])
-
-        # Horizontal lines at the bottom and top
-        theta_next = 2 * np.pi * ((i + 1) % num_segments) / num_segments
-        x_inner_next = inner_radius * np.cos(theta_next)
-        y_inner_next = inner_radius * np.sin(theta_next)
-        x_outer_next = outer_radius * np.cos(theta_next)
-        y_outer_next = outer_radius * np.sin(theta_next)
-
-        # Bottom inner and outer circles
-        wireframe_vertices.append([x_inner, y_inner, -height / 2])
-        wireframe_vertices.append([x_inner_next, y_inner_next, -height / 2])
-        wireframe_vertices.append([x_outer, y_outer, -height / 2])
-        wireframe_vertices.append([x_outer_next, y_outer_next, -height / 2])
-
-        # Top inner and outer circles
-        wireframe_vertices.append([x_inner, y_inner, height / 2])
-        wireframe_vertices.append([x_inner_next, y_inner_next, height / 2])
-        wireframe_vertices.append([x_outer, y_outer, height / 2])
-        wireframe_vertices.append([x_outer_next, y_outer_next, height / 2])
-
-    wireframe_vertices = np.array(wireframe_vertices)
-
-    # Create the wireframe visual with thicker lines
-    wireframe = Line(pos=wireframe_vertices, connect="segments", color="black", width=3)
     view.add(wireframe)
+    view.add(tube_mesh)
 
 
 def draw_sphere(center, color, radius=1):
@@ -152,19 +191,9 @@ def draw_annihilation(path1, detected1, path2, detected2, origin):
 
 
 for inner_radius in detector_inner_radii:
-    draw_cylinder(inner_radius, inner_radius + detector_thickness, detector_length, 30)
-origin = (-15.505946, 33.101066, 14.267038)
-path1 = [(24.692972, 45.146507, 19.498425), (21.201054, 56.841789, 30.257233)]
-path2 = [
-    (-39.940784, 25.779266, 11.087149),
-    (-39.570919, 22.475040, 9.805506),
-    (52.030170, -6.920190, -28.633856),
-    (51.959389, -6.434876, -28.646063),
-    (55.376598, -5.862780, -32.032188),
-    (60.668129, -0.803248, -37.574165),
-]
-detected1 = [1, 1]
-detected2 = [1, 1, 1, 1, 1, 1]
+    draw_tube(inner_radius, inner_radius + detector_thickness, detector_length, 30)
+draw_cylinder(10.6, 4, 30)
+origin, path1, path2, detected1, detected2 = read_file("visualization.data")
 draw_annihilation(path1, detected1, path2, detected2, origin)
 # Show the canvas
 canvas.show()

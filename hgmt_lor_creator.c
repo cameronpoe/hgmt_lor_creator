@@ -26,11 +26,13 @@ uint first_scatter_correct = 0;
 uint first_scatter_in_detector = 0;
 uint error_debug = 0;
 uint writing_to_lor = 1;
+uint vis_events = 5;
 event *first_event;
 double eff_by_energy[COLS];
 double E_max = 520.0;
 double E_min = 0.0;
 FILE *debug;
+FILE *visualization;
 double detector_locations[12] = {
     45,    47.54, 50.08, 52.62, 55.16, 57.7, 60.24,
     62.78, 65.32, 67.86, 70.4,  72.94}; // inner radii of detectors, MUST BE
@@ -237,8 +239,7 @@ photon_path *read_photon_path(FILE *source) {
   }
   // constructing list of hits
   photon->hits = (hit *)malloc(sizeof(hit) * photon->num_hits);
-  int j = 0;
-  for (int i = 0; i < photon->num_events; i++) {
+  for (int i = 0, j = 0; i < photon->num_events; i++) {
     if (detected[i]) {
       hit *detector_hit = event_to_hit(&photon->events[i]);
       photon->hits[j] = *detector_hit;
@@ -298,27 +299,51 @@ void free_annihilation(annihilation *new_annihilation) {
 }
 // provide debug statistics
 void debug_annihilation(annihilation *new_annihilation) {
-  printf("%i\n", num_scatters);
+
+  // fprintf(visualization, "%i\n", num_scatters);
   if (new_annihilation->photon1_path == NULL ||
       new_annihilation->photon2_path == NULL) {
     return;
   }
-  printf("%lf %lf %lf \n", new_annihilation->center.x,
-         new_annihilation->center.y, new_annihilation->center.z);
-  printf("\n");
+  fprintf(visualization, "%lf %lf %lf \n", new_annihilation->center.x,
+          new_annihilation->center.y, new_annihilation->center.z);
+  fprintf(visualization, "\n");
   for (int i = 0; i < new_annihilation->photon1_path->num_events; i++) {
-    printf("%lf %lf %lf \n",
-           new_annihilation->photon1_path->events[i].location.x,
-           new_annihilation->photon1_path->events[i].location.y,
-           new_annihilation->photon1_path->events[i].location.z);
+    fprintf(visualization, "%lf %lf %lf \n",
+            new_annihilation->photon1_path->events[i].location.x,
+            new_annihilation->photon1_path->events[i].location.y,
+            new_annihilation->photon1_path->events[i].location.z);
   }
-  printf("\n");
+  fprintf(visualization, "\n");
   for (int i = 0; i < new_annihilation->photon2_path->num_events; i++) {
-    printf("%lf %lf %lf \n",
-           new_annihilation->photon2_path->events[i].location.x,
-           new_annihilation->photon2_path->events[i].location.y,
-           new_annihilation->photon2_path->events[i].location.z);
+    fprintf(visualization, "%lf %lf %lf \n",
+            new_annihilation->photon2_path->events[i].location.x,
+            new_annihilation->photon2_path->events[i].location.y,
+            new_annihilation->photon2_path->events[i].location.z);
   }
+  fprintf(visualization, "\n");
+  bool *detected1 =
+      calloc(new_annihilation->photon1_path->num_events, sizeof(bool));
+  bool *detected2 =
+      calloc(new_annihilation->photon2_path->num_events, sizeof(bool));
+  for (int i = 0; i < new_annihilation->photon1_path->num_hits; i++) {
+    int index = new_annihilation->photon1_path->hits[i].source -
+                new_annihilation->photon1_path->events;
+    detected1[index] = 1;
+  }
+  for (int i = 0; i < new_annihilation->photon2_path->num_hits; i++) {
+    int index = new_annihilation->photon2_path->hits[i].source -
+                new_annihilation->photon2_path->events;
+    detected2[index] = 1;
+  }
+  for (int i = 0; i < new_annihilation->photon1_path->num_events; i++) {
+    fprintf(visualization, "%d", detected1[i] ? 1 : 0);
+  }
+  fprintf(visualization, "\n\n");
+  for (int i = 0; i < new_annihilation->photon2_path->num_events; i++) {
+    fprintf(visualization, "%d", detected2[i] ? 1 : 0);
+  }
+  fclose(visualization);
   exit(0);
 }
 int main(int argc, char **argv) {
@@ -402,6 +427,13 @@ int main(int argc, char **argv) {
   if (debug == NULL) {
     printf("Unable to open debug file for writing\n");
     return 1;
+  }
+  if (vis_events) {
+    visualization = fopen("visualization/visualization.data", "a");
+    if (visualization == NULL) {
+      printf("Unable to open debug file for writing\n");
+      return 1;
+    }
   }
   FILE *phsp_file = fopen(args[0], "rb");
 
