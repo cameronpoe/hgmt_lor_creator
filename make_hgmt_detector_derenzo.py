@@ -92,7 +92,7 @@ b:Ge/AirBox/Invisible	= "true"
 i:Ts/Seed = 26
 
 s:Sc/HGMTDerenzo/Quantity			= "HGMTNTuple"
-s:Sc/HGMTDerenzo/Component			= "DetectorVolume"
+s:Sc/HGMTDerenzo/Component			= "AirBox"
 b:Sc/HGMTDerenzo/PropagateToChildren	= "True"
 s:Sc/HGMTDerenzo/OutputType			= "binary"
 s:Sc/HGMTDerenzo/IfOutputFileAlreadyExists	= "Overwrite"

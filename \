@@ -12,27 +12,26 @@
 #include "llist.h"
 #include "vector_ops.h"
 
-// params
-bool writing_to_lor = true;
-uint vis_events = 0;
-double detector_locations[6] = {45.0, 50, 55, 60, 65, 70}; // MUST BE SORTED
-
 // global variables
-uint num_annihilations = 0;
+uint annihilations_occured = 0;
 uint num_paths = 0;
 uint num_scatters = 0;
 uint lors_created = 0;
 uint firstsecond = 0;
-uint num_inpatient = 0;
-uint first_correct = 0;
-uint num_hits = 0;
+bool error_debug = false;
+bool writing_to_lor = true;
+uint vis_events = 20;
 event *first_event;
 double eff_by_energy[COLS];
 double E_max = 520.0;
 double E_min = 0.0;
-bool debug_options[NUM_DEBUG_OPTIONS];
-FILE *debug[NUM_DEBUG_OPTIONS];
+FILE *debug;
 FILE *visualization;
+double detector_locations[12] = {
+    45,    47.54, 50.08, 52.62, 55.16, 57.7, 60.24,
+    62.78, 65.32, 67.86, 70.4,  72.94}; // inner radii of detectors, MUST BE
+//  SORTED
+// double detector_locations[6] = {45.0, 50, 55, 60, 65, 70};
 void print_lor(lor *new_lor, FILE *output) {
   fwrite(new_lor, sizeof(lor), 1, output);
 }
@@ -93,13 +92,20 @@ double linear_interpolation(double nums[COLS], double min, double max,
   double i_space = i - i_l;
   return nums[i_l] * i_space + nums[i_r] * (1.0 - i_space);
 }
-void read_eff(FILE *source) {
+int read_eff(FILE *source) {
+
+  // exits with code 1 if the source pointer isn't pointing to the file
+  if (source == NULL) {
+    return 1;
+  }
+
   // loops through all the entries in a row
   for (int i = 0; i < COLS; i++) {
-    fscanf(source, "%lf,", &eff_by_energy[i]);
+    int worked = fscanf(source, "%lf,", &eff_by_energy[i]);
   }
+  return 0;
 }
-// gets the detector an event happened in. return -1 if it didn't happen in a
+// gets the detector an event happened in. return -1 if it didn't happen in
 // detector
 int get_detector(vec3d location) {
   double rad_dist = radial_dist(location);
@@ -152,10 +158,12 @@ event *read_event(FILE *source) {
   new_event->parent_id = parent_id;
   new_event->track_id = track_id;
   new_event->detector_id = get_detector(new_event->location);
+  num_scatters++;
+  printm("Number of scatters read: ", num_scatters, 1000000);
   return new_event;
 }
 
-uint is_detected(event *single_event) {
+uint is_event_detected(event *single_event) {
   if (single_event->detector_id != -1 &&
       drand48() < linear_interpolation(eff_by_energy, E_min, E_max,
                                        single_event->energy_deposit)) {
@@ -217,7 +225,7 @@ photon_path *read_photon_path(FILE *source) {
   // determining which hits are detected
   int *detected = (int *)calloc(photon->num_events, sizeof(int));
   for (int i = 0; i < photon->num_events; i++) {
-    if (is_detected(&photon->events[i])) {
+    if (is_event_detected(&photon->events[i])) {
       detected[i] = 1;
       photon->num_hits++;
     }
@@ -282,27 +290,6 @@ void free_annihilation(annihilation *new_annihilation) {
   }
   free(new_annihilation);
 }
-void print_path(photon_path *path) {
-  bool *detected = calloc(path->num_events, sizeof(bool));
-  for (int i = 0; i < path->num_hits; i++) {
-    int index = path->hits[i].source - path->events;
-    detected[index] = 1;
-  }
-  for (int i = 0; i < path->num_events; i++) {
-    // format: x,y,z, energy deposit, detected
-    fprintf(visualization, "%lf %lf %lf %lf %d \n", path->events[i].location.x,
-            path->events[i].location.y, path->events[i].location.z,
-            path->events[i].energy_deposit, detected[i] ? 1 : 0);
-  }
-}
-void print_annihilation(annihilation *new_annihilation) {
-  fprintf(visualization, "%lf %lf %lf \n\n", new_annihilation->center.x,
-          new_annihilation->center.y, new_annihilation->center.z);
-  print_path(new_annihilation->photon1_path);
-  fprintf(visualization, "\n");
-  print_path(new_annihilation->photon2_path);
-  fprintf(visualization, "\n\n");
-}
 // provide debug statistics
 void debug_path(photon_path *path) {
   bool *detected = calloc(path->num_events, sizeof(bool));
@@ -310,66 +297,61 @@ void debug_path(photon_path *path) {
     int index = path->hits[i].source - path->events;
     detected[index] = 1;
   }
-  // getting all the important statistics
-  num_scatters += path->num_events;
-  num_hits += path->num_hits;
-  num_paths++;
-  if (path->events->detector_id != -1) {
-    if (detected[0])
-      firstsecond++;
-    // error debug stuff
-    if (debug_options[0]) {
-      for (int j = 0; j < path->num_events; j++)
-        print_double(path->events[j].detector_id, debug[0]);
+  if (vis_events > 0) {
+    for (int i = 0; i < path->num_events; i++) {
+      // format: x,y,z, energy deposit, detected
+      fprintf(visualization, "%lf %lf %lf %lf %d \n",
+              path->events[i].location.x, path->events[i].location.y,
+              path->events[i].location.z, path->events[i].energy_deposit,
+              detected[i] ? 1 : 0);
     }
-    if (debug_options[1])
-      print_double(path->events->detector_id, debug[1]);
-  } else
-    num_inpatient++;
-  free(detected);
+  }
+  // getting all the important statistics
+  if (detected[0] || detected[1]) {
+    firstsecond++;
+  }
 }
 void debug_annihilation(annihilation *new_annihilation) {
-  num_annihilations++;
+  annihilations_occured++;
+
   // fprintf(visualization, "%i\n", num_scatters);
-  if (vis_events > 0 && new_annihilation->photon1_path != NULL &&
-      new_annihilation->photon2_path != NULL) {
-    print_annihilation(new_annihilation);
-    vis_events--;
+  if (new_annihilation->photon1_path == NULL ||
+      new_annihilation->photon2_path == NULL) {
+    return;
   }
-  if (new_annihilation->photon1_path != NULL)
+  if (vis_events > 0) {
+    fprintf(visualization, "%lf %lf %lf \n\n", new_annihilation->center.x,
+            new_annihilation->center.y, new_annihilation->center.z);
     debug_path(new_annihilation->photon1_path);
-  if (new_annihilation->photon2_path != NULL)
+    fprintf(visualization, "\n");
     debug_path(new_annihilation->photon2_path);
+    fprintf(visualization, "\n\n");
+    vis_events--;
+  } else {
+    debug_path(new_annihilation->photon1_path);
+    debug_path(new_annihilation->photon2_path);
+  }
 }
 int main(int argc, char **argv) {
   char **flags = get_flags(argc, argv);
   char **args = get_args(argc, argv);
-  // handling all flags and arguments
+  // defines the help function and how to call it (by using -h or --help)
   for (int i = 0; i < num_flags(argc, argv); i++) {
     if (strcmp(flags[i], "-h") == 0) {
       printf("Usage: ./hgmt_lor_creator [TOPAS_file_location.phsp] "
              "[efficiency_table_location.csv] [LOR_output_location]\n");
       printf("-h: print this help\n");
       printf("-d: run in debug mode, do not write to lor file\n");
-      printf("-v#: visualize # events\n");
-      printf("-e#: run with debug option #\n");
-      printf("\t0: histogram of detector vs number of scatters\n");
-      printf("\t1: histogram of detector vs number of first scatters\n");
+      printf("-v: run in debug mode, do not write to lor file\n");
       exit(0);
+    } else if (strcmp(flags[i], "-e1") == 0) {
+      printf("running with compton error debug\n");
+      error_debug = true;
     } else if (strcmp(flags[i], "-d") == 0) {
       printf("running in debug mode, won't write to a lor file\n");
       writing_to_lor = false;
-    } else if (strncmp(flags[i], "-e", 2) == 0) {
-      uint debug_option;
-      sscanf(flags[i], "-e%u", &debug_option);
-      debug_options[debug_option] = true;
-      printf("running with debug option: %u\n", debug_option); // Output: 42
-    } else if (strncmp(flags[i], "-v", 2) == 0) {
-      sscanf(flags[i], "-v%u", &vis_events);
-      printf("outputting data to visualize %u events\n", vis_events);
     }
   }
-
   // checks to make sure you have correct number of args
   if (num_args(argc, argv) != 3 - !writing_to_lor) {
     printf("Incorrect number of arguments, three arguments required.\n");
@@ -381,35 +363,41 @@ int main(int argc, char **argv) {
   printf("HGMT LOR Creator\n\nLoading in '%s' as efficiencies table...\n",
          args[1]);
   FILE *eff_table_file = fopen(args[1], "r");
-  read_eff(eff_table_file);
+  int eff_file_read = read_eff(eff_table_file);
   fclose(eff_table_file);
+  printf("Done!\n\n");
 
   // opens up a .lor file to output each LOR into
   FILE *lor_output = NULL;
   if (writing_to_lor) {
-    printf("Unable to open output file for writing1\n");
-    char *lor_file_loc;
-    asprintf(&lor_file_loc, "data/%s.lor", args[2]);
+    char *lor_file_loc = (char *)malloc(sizeof(char) * (strlen(args[2]) + 10));
+    strcpy(lor_file_loc, args[2]);
+    lor_file_loc = strcat(lor_file_loc, ".lor");
     lor_output = fopen(lor_file_loc, "wb");
-    free(lor_file_loc);
-  }
-  for (int i = 0; i < NUM_DEBUG_OPTIONS; i++) {
-    if (debug_options[i]) {
-      char *filename;
-      asprintf(&filename, "data/debug%d.data", i);
-      debug[i] = fopen(filename, "wb");
-      free(filename);
+    if (lor_output == NULL) {
+      printf("Unable to open output file for writing\n");
+      return 1;
     }
   }
-  if (vis_events)
-    visualization = fopen("data/visualization.data", "w");
+  debug = fopen("debug.data", "wb");
+  if (debug == NULL) {
+    printf("Unable to open debug file for writing\n");
+    return 1;
+  }
+  if (vis_events) {
+    visualization = fopen("visualization/visualization.data", "w");
+    if (visualization == NULL) {
+      printf("Unable to open debug file for writing\n");
+      return 1;
+    }
+  }
   FILE *phsp_file = fopen(args[0], "rb");
-  printf("Loading in '%s' as the phsp file...\n", args[0]);
 
-  printf("Constructing the hits...\n\n");
+  printf("Constructing the hits...\n");
   first_event = read_event(phsp_file);
   annihilation *new_annihilation = read_annihilation(phsp_file);
   while (new_annihilation != NULL) {
+    annihilations_occured++;
     if (new_annihilation->photon2_path != NULL &&
         new_annihilation->photon1_path->num_hits != 0 &&
         new_annihilation->photon2_path->num_hits != 0) {
@@ -430,19 +418,24 @@ int main(int argc, char **argv) {
     free_annihilation(new_annihilation);
     new_annihilation = read_annihilation(phsp_file);
   }
-  printf("Annihilations ocurred: %u\n", num_annihilations);
-  printf("Scatters occurred: %u\n", num_scatters);
-  printf("Scatters detected: %u\n", num_hits);
+  printf("Done!\n\n");
+
+  printf("Scatters that occurred: %u\n", num_scatters);
+  printf("Scatters detected: %u\n", scatters_detected);
   printf("Lors created: %u\n", lors_created);
+  printf("Annihilations ocurred: %u\n", annihilations_occured);
   printf("Lor creation efficiency: %lf\n",
-         (double)lors_created / num_annihilations);
-  printf("Detector Interaction Cut: %lf\n",
-         (double)num_paths / (num_annihilations * 2));
-  printf("Inpatient Scatter Cut: %lf\n",
-         1.0 - (double)num_inpatient / (num_annihilations * 2));
-  printf("First Scatter Detected Cut: %lf\n",
-         (double)firstsecond / (num_paths - num_inpatient));
-  printf("Cumulative Cut: %lf\n",
-         (double)firstsecond / (num_annihilations * 2));
+         (double)lors_created / annihilations_occured);
+  printf("First detected scatter correctness: %lf\n",
+         (double)first_correct / first_guessed);
+  printf("Proportion of first/second scatters detected: %lf\n",
+         (double)firstsecond / annihilations_occured);
+  printf("Proportion of first scatters occurred in a detector: %lf\n",
+         (double)first_scatter_in_detector / events_occurred);
+  printf("Proportion of first scatters detected in chains with atleast 1 "
+         "scatter detected: %lf\n",
+         (double)first_detected / paths_created);
+  printf("First scatter correctness: %lf\n",
+         (double)first_scatter_correct / first_guessed);
   return 0;
 }

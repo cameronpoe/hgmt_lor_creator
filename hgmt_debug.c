@@ -50,7 +50,7 @@ int write_incidence_angle(FILE *source) {
   float cosY;
   float energy;
   int type;
-  int worked;
+  int worked = 0;
   int particle_id;
   float x;
   float y;
@@ -114,16 +114,6 @@ event *read_event(FILE *source) {
   new_event->track_id = track_id;
   return new_event;
 }
-double read_double(FILE *input) {
-  double num;
-  int worked = fread(&num, sizeof(double), 1, input);
-
-  if (worked != 1) {
-    return -1;
-  }
-  // make a new event to be passed out
-  return num;
-}
 void read_angles(FILE *source) {
   while (write_incidence_angle(source) == 1) {
     continue;
@@ -132,13 +122,14 @@ void read_angles(FILE *source) {
 void hist_debug(FILE *input, float max_value, int num_bins) {
   histogram *hist = new_histogram(0.0, max_value, num_bins);
 
-  double num = read_double(input);
+  double num;
+  bool worked = fread(&num, sizeof(double), 1, input);
   double tot = 0;
-  while (num != -1) {
+  while (worked == 1) {
     num_datas++;
     tot += num;
     add_to_histogram(num, hist);
-    num = read_double(input);
+    worked = fread(&num, sizeof(double), 1, input);
   }
   printf("number of data points: %i\n", num_datas);
   printf("average: %lf\n", (double)tot / num_datas);

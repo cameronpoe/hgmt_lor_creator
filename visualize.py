@@ -1,10 +1,9 @@
 import numpy as np
-from numpy._core.defchararray import center
-from vispy import scene, geometry
-from vispy.scene.visuals import Mesh, Line, Sphere
+import sys
+from vispy import scene
+from vispy.scene.visuals import Mesh, Line
 from vispy.color import Color
 from vispy.scene import visuals
-from vispy.visuals.transforms import STTransform
 
 # Parameters
 detector_length = 200  # cm
@@ -12,25 +11,50 @@ detector_thickness = 2.54  # cm
 detector_inner_radii = np.array([45] * 5) + 5 * np.array(range(5))  # MUST BE SORTED
 detector_volume_inner_rad = 45  # cm
 detector_volume_outer_rad = 75  # cm
+argument = 0
+
+if len(sys.argv) > 1:
+    # The first argument is at index 1
+    argument = int(sys.argv[1])
+    print(f"visualizing event {argument}")
+else:
+    print("no argument provided, visualizing event 0")
 
 
 def read_file(filename):
     with open(filename, "r") as file:
         file_content = file.read()
-    groups = file_content.strip().split("\n\n")
+    groups = file_content.strip().split("\n\n\n")[argument].split("\n\n")
 
     # Initialize the result lists
-    result = []
-
-    for group in groups[:3]:
-        # Split each group into lines and convert to tuples of floats
-        tuples = [tuple(map(float, line.split())) for line in group.strip().split("\n")]
-        result.append(tuples)
-    for group in groups[-2:]:
-        detected = [int(bit) for bit in group if bit in "01"]
-        result.append(detected)
-
-    return result[0][0], result[1], result[2], result[3], result[4]
+    center = tuple(map(float, groups[0].split()))
+    locs1, energies1, detected1 = map(
+        list,
+        zip(
+            *[
+                (
+                    tuple(map(float, item.split()[:3])),
+                    float(item.split()[3]),
+                    int(item.split()[4]),
+                )
+                for item in groups[1].strip().split("\n")
+            ]
+        ),
+    )
+    locs2, energies2, detected2 = map(
+        list,
+        zip(
+            *[
+                (
+                    tuple(map(float, item.split()[:3])),
+                    float(item.split()[3]),
+                    int(item.split()[4]),
+                )
+                for item in groups[2].strip().split("\n")
+            ]
+        ),
+    )
+    return center, locs1, locs2, energies1, energies2, detected1, detected2
 
 
 def create_cylinder_mesh(radius, length, num_segments):
@@ -137,6 +161,7 @@ canvas = scene.SceneCanvas(keys="interactive", bgcolor="white")
 view = canvas.central_widget.add_view()
 # Set up the camera
 view.camera = scene.TurntableCamera(elevation=30, azimuth=30, distance=10000, fov=0.0)
+# Add text to the overlay
 
 
 def draw_tube(inner_radius, outer_radius, length, num_segments):
@@ -154,24 +179,32 @@ def draw_tube(inner_radius, outer_radius, length, num_segments):
     view.add(tube_mesh)
 
 
-def draw_sphere(center, color, radius=1):
-    sphere = Sphere(
-        radius,
-        method="latitude",
-        parent=view.scene,
-        color=color,
+def draw_sphere(center, color, radius=15):
+    marker = scene.visuals.Markers(
+        pos=np.array([center]), size=radius, face_color=color, edge_color=None
     )
-    sphere.transform = STTransform(translate=center)
-    sphere.set_gl_state(
+    marker.set_gl_state(
         "translucent",
         depth_test=False,
         blend=True,
         blend_func=("src_alpha", "one_minus_src_alpha"),
     )
-    view.add(sphere)
+    view.add(marker)
 
 
-def draw_path(points, detected):
+def label(position, text):
+    text_label = visuals.Text(
+        text=text,  # Text to display
+        pos=position,  # Position of the text (same as the marker)
+        color="black",  # Text color
+        font_size=20,  # Font size
+        anchor_x="center",  # Center the text horizontally
+        anchor_y="bottom",  # Position the text above the marker
+    )
+    view.add(text_label)
+
+
+def draw_path(points, detected, pathid, energies):
     path = Line(pos=points, color="red", width=1)
     path.set_gl_state(
         "translucent",
@@ -181,26 +214,30 @@ def draw_path(points, detected):
     )
     for i in range(1, len(points)):
         draw_sphere(points[i], Color("green" if detected[i] else "grey"))
+        label(points[i], pathid + str(i))
+        print(pathid + str(i) + ": " + str(energies[i - 1]))
     view.add(path)
 
 
-def draw_annihilation(path1, detected1, path2, detected2, origin):
-    draw_path([origin] + path1, [0] + detected1)
-    draw_path([origin] + path2, [0] + detected2)
+def draw_annihilation(locs1, energies1, detected1, locs2, energies2, detected2, origin):
+    draw_path([origin] + locs1, [0] + detected1, "a", energies1)
+    print("\n")
+    draw_path([origin] + locs2, [0] + detected2, "b", energies2)
+    # marker = scene.visuals.Markers(pos=np.array([origin]), size=10, face_color="red")
     draw_sphere(origin, Color("red"))
 
 
 for inner_radius in detector_inner_radii:
     draw_tube(inner_radius, inner_radius + detector_thickness, detector_length, 30)
 draw_cylinder(10.6, 4, 30)
-origin, path1, path2, detected1, detected2 = read_file("visualization.data")
-draw_annihilation(path1, detected1, path2, detected2, origin)
-# Show the canvas
-canvas.show()
+origin, locs1, locs2, energies1, energies2, detected1, detected2 = read_file(
+    "data/visualization.data"
+)
+draw_annihilation(locs1, energies1, detected1, locs2, energies2, detected2, origin)
+text = ""
 
+canvas.show()
 # Run the application
 if __name__ == "__main__":
-    import sys
-
-    if sys.flags.interactive != 1:
-        canvas.app.run()
+    canvas.app.run()
+# Show the canvas

@@ -8,10 +8,12 @@
 #define COLS 105
 #define SPD_LGHT 29.9792458 // cm/ns
 #define UNCERT_REP 30
-#define SPC_UNC 0.1
+#define SPC_UNC 0.1 // cm
+#define RAD_UNC 0.5
 #define TIME_UNC 0.1 // 0.042463 // ns, sigma (0.100 ns FWHM)
 #define DETECTOR_THICKNESS 2.54
-#define DETECTOR_SEGMENTATION 1
+#define DETECTOR_SEGMENTATION 0
+#define NUM_DEBUG_OPTIONS 3
 typedef unsigned int uint;
 
 typedef struct event_ {

@@ -61,11 +61,6 @@ char **get_flags(int argc, char **argv) {
   }
   return flags;
 }
-void printm(char message[], int counter, int mod) {
-  if (counter % mod == 0) {
-    printf("%s%i\n", message, counter);
-  }
-}
 int factorial(int num) {
   if (num <= 10) {
     return factlookup[num - 1];
