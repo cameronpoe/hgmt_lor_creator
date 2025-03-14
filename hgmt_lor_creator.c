@@ -18,13 +18,16 @@ uint vis_events = 0;
 double detector_locations[6] = {45.0, 50, 55, 60, 65, 70}; // MUST BE SORTED
 
 // global variables
-uint num_annihilations = 0;
-uint num_paths = 0;
+#define NUM_CUTS 5
+// cuts are {occured, interacted with something, wasn't inpatient, detected,
+// first or second detected}
+char *cut_descriptions[] = {"occured", "interected with something",
+                            "wasn't inpatient", "detected",
+                            "first or second detected"};
+uint cuts[NUM_CUTS] = {0};
+// dual cuts are the same but require both to happen in an annihilation
+uint dual_cuts[NUM_CUTS] = {0};
 uint num_scatters = 0;
-uint lors_created = 0;
-uint firstsecond = 0;
-uint num_inpatient = 0;
-uint first_correct = 0;
 uint num_hits = 0;
 event *first_event;
 double eff_by_energy[COLS];
@@ -264,9 +267,8 @@ annihilation *read_annihilation(FILE *source) {
     vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
     vec3d annihilation_loc = vec_add(center, displacement_from_center);
     new_annihilation->center = annihilation_loc;
-  } else {
+  } else
     new_annihilation->photon2_path = NULL;
-  }
   return new_annihilation;
 }
 void free_annihilation(annihilation *new_annihilation) {
@@ -304,7 +306,11 @@ void print_annihilation(annihilation *new_annihilation) {
   fprintf(visualization, "\n\n");
 }
 // provide debug statistics
-void debug_path(photon_path *path) {
+int debug_path(photon_path *path) {
+  if (path == NULL) {
+    cuts[0]++;
+    return 0;
+  }
   bool *detected = calloc(path->num_events, sizeof(bool));
   for (int i = 0; i < path->num_hits; i++) {
     int index = path->hits[i].source - path->events;
@@ -313,33 +319,36 @@ void debug_path(photon_path *path) {
   // getting all the important statistics
   num_scatters += path->num_events;
   num_hits += path->num_hits;
-  num_paths++;
-  if (path->events->detector_id != -1) {
-    if (detected[0])
-      firstsecond++;
-    // error debug stuff
-    if (debug_options[0]) {
-      for (int j = 0; j < path->num_events; j++)
-        print_double(path->events[j].detector_id, debug[0]);
-    }
-    if (debug_options[1])
-      print_double(path->events->detector_id, debug[1]);
-  } else
-    num_inpatient++;
+  if (debug_options[0]) {
+    for (int j = 0; j < path->num_events; j++)
+      print_double(path->events[j].detector_id, debug[0]);
+  }
+  if (debug_options[1])
+    print_double(path->events->detector_id, debug[1]);
+  // figure out which cut the photon got to, format is: if (not cut n) cut=n-1
+  int cut;
+  if (path->events->detector_id == -1)
+    cut = 1;
+  else if (path->num_hits == 0)
+    cut = 2;
+  else if (path->hits->source != path->events)
+    cut = 3;
+  else
+    cut = 4;
+  cuts[cut]++;
   free(detected);
+  return cut;
 }
 void debug_annihilation(annihilation *new_annihilation) {
-  num_annihilations++;
   // fprintf(visualization, "%i\n", num_scatters);
   if (vis_events > 0 && new_annihilation->photon1_path != NULL &&
       new_annihilation->photon2_path != NULL) {
     print_annihilation(new_annihilation);
     vis_events--;
   }
-  if (new_annihilation->photon1_path != NULL)
-    debug_path(new_annihilation->photon1_path);
-  if (new_annihilation->photon2_path != NULL)
-    debug_path(new_annihilation->photon2_path);
+  int cut1 = debug_path(new_annihilation->photon1_path);
+  int cut2 = debug_path(new_annihilation->photon2_path);
+  dual_cuts[MIN(cut1, cut2)]++;
 }
 int main(int argc, char **argv) {
   char **flags = get_flags(argc, argv);
@@ -417,7 +426,6 @@ int main(int argc, char **argv) {
       // printf("%i \n\n", new_annihilation->photon2_path.num_hits);
       prim_lor *primitive_lor = create_prim_lor(new_annihilation);
       if (primitive_lor != NULL) {
-        lors_created++;
         if (writing_to_lor) {
           lor *new_lor = create_lor(primitive_lor);
           print_lor(new_lor, lor_output);
@@ -430,19 +438,30 @@ int main(int argc, char **argv) {
     free_annihilation(new_annihilation);
     new_annihilation = read_annihilation(phsp_file);
   }
-  printf("Annihilations ocurred: %u\n", num_annihilations);
-  printf("Scatters occurred: %u\n", num_scatters);
-  printf("Scatters detected: %u\n", num_hits);
-  printf("Lors created: %u\n", lors_created);
-  printf("Lor creation efficiency: %lf\n",
-         (double)lors_created / num_annihilations);
-  printf("Detector Interaction Cut: %lf\n",
-         (double)num_paths / (num_annihilations * 2));
-  printf("Inpatient Scatter Cut: %lf\n",
-         1.0 - (double)num_inpatient / (num_annihilations * 2));
-  printf("First Scatter Detected Cut: %lf\n",
-         (double)firstsecond / (num_paths - num_inpatient));
-  printf("Cumulative Cut: %lf\n",
-         (double)firstsecond / (num_annihilations * 2));
+  // fixing cuts formating to be cumulative
+  for (int i = NUM_CUTS - 2; i >= 0; i--) {
+    cuts[i] += cuts[i + 1];
+    dual_cuts[i] += dual_cuts[i + 1];
+  }
+  printf("total annihilations: %u\n", dual_cuts[0]);
+  printf("total scatters: %u\n", num_scatters);
+  printf("scatters detected: %u\n", num_hits);
+  printf(
+      "(DUAL)CUT 'N': 'num' 'percent passing' 'cumulative percent passing'\n");
+  printf("\n");
+  for (int i = 1; i < NUM_CUTS; i++) {
+    printf("%u: %s\n", i, cut_descriptions[i]);
+  }
+  printf("\n");
+  for (int i = 1; i < NUM_CUTS; i++) {
+    printf("CUT %u: %u %lf %lf\n", i, cuts[i], (double)cuts[i] / cuts[i - 1],
+           (double)cuts[i] / cuts[0]);
+  }
+  printf("\n");
+  for (int i = 1; i < NUM_CUTS; i++) {
+    printf("DUALCUT %u: %u %lf %lf\n", i, dual_cuts[i],
+           (double)dual_cuts[i] / dual_cuts[i - 1],
+           (double)dual_cuts[i] / dual_cuts[0]);
+  }
   return 0;
 }

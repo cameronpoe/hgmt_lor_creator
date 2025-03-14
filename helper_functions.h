@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 // gives a random number following a guassian distribution
 double gaussian(double sd, int num_additions);
 char **get_args(int argc, char **argv);
