@@ -5,6 +5,9 @@ from vispy import scene
 from vispy.scene.visuals import Mesh, Line
 from vispy.color import Color
 from vispy.scene import visuals
+import vispy.app
+
+vispy.app.use_app("pyqt6")
 
 # Parameters
 detector_length = 200  # cm

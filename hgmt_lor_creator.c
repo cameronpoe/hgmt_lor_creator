@@ -19,6 +19,7 @@ double detector_locations[6] = {45.0, 50, 55, 60, 65, 70}; // MUST BE SORTED
 
 // global variables
 #define NUM_CUTS 5
+#define NUM_DEBUG_OPTIONS 3
 // cuts are {occured, interacted with something, wasn't inpatient, detected,
 // first or second detected}
 char *cut_descriptions[] = {"occured", "interected with something",
@@ -47,8 +48,8 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
   // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
   // time_FOM); hit *hit2 =
   // initial_by_best_order(new_annihilation->photon2_path, time_FOM);
-  hit *hit1 = initial_by_least_radial(new_annihilation->photon1_path);
-  hit *hit2 = initial_by_least_radial(new_annihilation->photon2_path);
+  hit *hit1 = initial_by_best_time(new_annihilation->photon1_path);
+  hit *hit2 = initial_by_best_time(new_annihilation->photon2_path);
 
   prim_lor *new_prim_lor = (prim_lor *)malloc(sizeof(prim_lor));
   new_prim_lor->hit1 = hit1;
@@ -210,6 +211,7 @@ photon_path *read_photon_path(FILE *source) {
     photon->num_events++;
     new_event = read_event(source);
   }
+  first_event = new_event;
   photon->events = (event *)malloc(sizeof(event) * photon->num_events);
   for (int i = 0; i < photon->num_events; i++) {
     photon->events[i] = *path_perfect->data;
@@ -238,10 +240,6 @@ photon_path *read_photon_path(FILE *source) {
   free(detected);
   // freeing all the redundant data
   wipe_list(path_perfect);
-  first_event = new_event;
-  // sorting by detected time
-  if (photon->num_hits > 0)
-    qsort(photon->hits, photon->num_hits, sizeof(hit), compare_hits);
   // returning
   return photon;
 }
@@ -253,20 +251,15 @@ annihilation *read_annihilation(FILE *source) {
   }
   annihilation *new_annihilation = (annihilation *)malloc(sizeof(annihilation));
   int event_id = first_event->event_id;
-  // printf("%i\n", event_id);
-  new_annihilation->photon1_path = read_photon_path(source);
+  new_annihilation->center = first_event->location;
+  free(first_event);
+  first_event = read_event(source);
+  if (first_event->event_id == event_id) {
+    new_annihilation->photon1_path = read_photon_path(source);
+  } else
+    new_annihilation->photon1_path = NULL;
   if (first_event->event_id == event_id) {
     new_annihilation->photon2_path = read_photon_path(source);
-    vec3d a = new_annihilation->photon1_path->events->location;
-    vec3d b = new_annihilation->photon2_path->events->location;
-    vec3d c = vec_sub(a, b);
-    vec3d center = vec_add(b, vec_scale(c, 0.5));
-    vec3d c_hat = vec_norm(c);
-    double delta_t = -(new_annihilation->photon1_path->events->tof -
-                       new_annihilation->photon2_path->events->tof);
-    vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
-    vec3d annihilation_loc = vec_add(center, displacement_from_center);
-    new_annihilation->center = annihilation_loc;
   } else
     new_annihilation->photon2_path = NULL;
   return new_annihilation;
@@ -274,13 +267,13 @@ annihilation *read_annihilation(FILE *source) {
 void free_annihilation(annihilation *new_annihilation) {
   if (new_annihilation->photon1_path != NULL) {
     free(new_annihilation->photon1_path->hits);
-    free(new_annihilation->photon1_path);
     free(new_annihilation->photon1_path->events);
+    free(new_annihilation->photon1_path);
   }
   if (new_annihilation->photon2_path != NULL) {
     free(new_annihilation->photon2_path->hits);
-    free(new_annihilation->photon2_path);
     free(new_annihilation->photon2_path->events);
+    free(new_annihilation->photon2_path);
   }
   free(new_annihilation);
 }
@@ -339,7 +332,7 @@ int debug_path(photon_path *path) {
   free(detected);
   return cut;
 }
-void debug_annihilation(annihilation *new_annihilation) {
+int debug_annihilation(annihilation *new_annihilation) {
   // fprintf(visualization, "%i\n", num_scatters);
   if (vis_events > 0 && new_annihilation->photon1_path != NULL &&
       new_annihilation->photon2_path != NULL) {
@@ -348,7 +341,14 @@ void debug_annihilation(annihilation *new_annihilation) {
   }
   int cut1 = debug_path(new_annihilation->photon1_path);
   int cut2 = debug_path(new_annihilation->photon2_path);
-  dual_cuts[MIN(cut1, cut2)]++;
+  int cut = MIN(cut1, cut2);
+  dual_cuts[cut]++;
+  return cut;
+}
+void debug_lor(lor *new_lor, vec3d truecenter) {
+  if (debug_options[2]) {
+    print_double(vec_dist(new_lor->center, truecenter), debug[2]);
+  }
 }
 int main(int argc, char **argv) {
   char **flags = get_flags(argc, argv);
@@ -364,6 +364,7 @@ int main(int argc, char **argv) {
       printf("-e#: run with debug option #\n");
       printf("\t0: histogram of detector vs number of scatters\n");
       printf("\t1: histogram of detector vs number of first scatters\n");
+      printf("\t2: lor reconstruction error to real center\n");
       exit(0);
     } else if (strcmp(flags[i], "-d") == 0) {
       printf("running in debug mode, won't write to a lor file\n");
@@ -419,22 +420,16 @@ int main(int argc, char **argv) {
   first_event = read_event(phsp_file);
   annihilation *new_annihilation = read_annihilation(phsp_file);
   while (new_annihilation != NULL) {
-    if (new_annihilation->photon2_path != NULL &&
-        new_annihilation->photon1_path->num_hits != 0 &&
-        new_annihilation->photon2_path->num_hits != 0) {
-      // printf("%i \n", new_annihilation->photon1_path.num_hits);
-      // printf("%i \n\n", new_annihilation->photon2_path.num_hits);
+    // be careful with short circuit evaluation, debug should always run
+    if (debug_annihilation(new_annihilation) >= 3) {
       prim_lor *primitive_lor = create_prim_lor(new_annihilation);
-      if (primitive_lor != NULL) {
-        if (writing_to_lor) {
-          lor *new_lor = create_lor(primitive_lor);
-          print_lor(new_lor, lor_output);
-          free(new_lor);
-        }
-      }
+      lor *new_lor = create_lor(primitive_lor);
+      if (writing_to_lor)
+        print_lor(new_lor, lor_output);
+      debug_lor(new_lor, new_annihilation->center);
       free(primitive_lor);
+      free(new_lor);
     }
-    debug_annihilation(new_annihilation);
     free_annihilation(new_annihilation);
     new_annihilation = read_annihilation(phsp_file);
   }

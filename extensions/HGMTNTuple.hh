@@ -13,6 +13,7 @@
 #ifndef HGMTNTuple_hh
 #define HGMTNTuple_hh
 
+#include "G4Types.hh"
 #include "TsVNtupleScorer.hh"
 
 class HGMTNTuple : public TsVNtupleScorer {
@@ -48,5 +49,7 @@ private:
   G4float fParentMomentumX;
   G4float fParentMomentumY;
   G4float fParentMomentumZ;
+
+  G4int fStepNumber;
 };
 #endif

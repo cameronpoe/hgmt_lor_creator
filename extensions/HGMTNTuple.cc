@@ -18,6 +18,7 @@
 #include "G4Event.hh"
 #include "G4PSDirectionFlag.hh"
 #include "G4ThreeVector.hh"
+#include "G4TrackStatus.hh"
 #include "G4VProcess.hh"
 #include "TsTrackInformation.hh"
 
@@ -38,35 +39,36 @@ HGMTNTuple::HGMTNTuple(TsParameterManager *pM, TsMaterialManager *mM,
   // fNtuple->RegisterColumnF(&fParentMomentumX, "Momentum X", "");
   // fNtuple->RegisterColumnF(&fParentMomentumY, "Momentum Y", "");
   // fNtuple->RegisterColumnF(&fParentMomentumZ, "Momentum Z", "");
-  //   fNtuple->RegisterColumnF(&fWeight, "Weight", "");
   fNtuple->RegisterColumnF(&fTimeOfFlight, "Time of Flight", "ns");
-  // fNtuple->RegisterColumnI(&fParticleType, "Particle Type (in PDG Format)");
   // fNtuple->RegisterColumnS(&fOriginProcessName, "Origin Process");
   // fNtuple->RegisterColumnI(&fOriginProcessID, "Origin Process (int)");
   fNtuple->RegisterColumnI(&fParentID, "Parent ID");
-  fNtuple->RegisterColumnI(&fTrackID, "Particle ID");
+  fNtuple->RegisterColumnI(&fTrackID, "Track ID");
+
+  // fNtuple->RegisterColumnI(&fParticleType, "Particle Type");
+  // fNtuple->RegisterColumnI(&fStepNumber, "Step Number");
 }
 
 HGMTNTuple::~HGMTNTuple() { ; }
 
 G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
   G4Track *track = aStep->GetTrack();
+  G4TrackStatus trackStatus = track->GetTrackStatus();
   fParticleType = track->GetDefinition()->GetPDGEncoding();
   fParentID = track->GetParentID();
-  if (!fIsActive || fParticleType != 11 || (fParentID != 2 && fParentID != 3) ||
-      track->GetCurrentStepNumber() != 1) {
+  fStepNumber = track->GetCurrentStepNumber();
+  if ((fStepNumber != 1 || fParticleType != 11 ||
+       (fParentID != 2 && fParentID != 3)) &&
+      (fParticleType != -11 || fParentID != 0 ||
+       (trackStatus != fStopAndKill && trackStatus != fStopButAlive))) {
     fSkippedWhileInactive++;
     return false;
   }
   fEnergy = aStep->GetPreStepPoint()->GetKineticEnergy();
   ResolveSolid(aStep);
 
-  G4StepPoint *theStepPoint = 0;
-  // this has weird units or something
-  // fDeposit = aStep->GetTotalEnergyDeposit();
   fTimeOfFlight = track->GetGlobalTime();
 
-  // fEnergy = aStep->GetPreStepPoint()->GetKineticEnergy();
   G4ThreeVector pos = aStep->GetPostStepPoint()->GetPosition();
   // G4ThreeVector momentum = aStep->GetPreStepPoint()->GetMomentumDirection();
 
@@ -76,19 +78,7 @@ G4bool HGMTNTuple::ProcessHits(G4Step *aStep, G4TouchableHistory *) {
 
   fEvent = GetEventID();
 
-  fTrackID = aStep->GetTrack()->GetTrackID();
-
-  // Check if this is a new history
-  // fRunID   = GetRunID();
-  // fEventID = GetEventID();
-  // if (fEventID != fPrevEventID || fRunID != fPrevRunID) {
-  // 	fIsNewHistory = true;
-  // 	fPrevEventID = fEventID;
-  // 	fPrevRunID = fRunID;
-  // } else {
-  // 	fIsNewHistory = false;
-  // }
-
+  fTrackID = track->GetTrackID();
   fNtuple->Fill();
   return true;
 }
