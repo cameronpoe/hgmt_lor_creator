@@ -15,16 +15,16 @@
 // params
 bool writing_to_lor = true;
 uint vis_events = 0;
-double detector_locations[6] = {45.0, 50, 55, 60, 65, 70}; // MUST BE SORTED
+double detector_locations[12] = {45, 50, 55, 60, 65, 70,
+                                 75, 80, 85, 90, 95, 100}; // MUST BE SORTED
 
 // global variables
 #define NUM_CUTS 5
-#define NUM_DEBUG_OPTIONS 3
+#define NUM_DEBUG_OPTIONS 5
 // cuts are {occured, interacted with something, wasn't inpatient, detected,
 // first or second detected}
-char *cut_descriptions[] = {"occured", "interected with something",
-                            "wasn't inpatient", "detected",
-                            "first or second detected"};
+char *cut_descriptions[] = {"occured", "interected with something", "detected",
+                            "wasn't inpatient", "first scatter detected"};
 uint cuts[NUM_CUTS] = {0};
 // dual cuts are the same but require both to happen in an annihilation
 uint dual_cuts[NUM_CUTS] = {0};
@@ -43,6 +43,9 @@ void print_lor(lor *new_lor, FILE *output) {
 
 void print_double(double numb, FILE *output) {
   fwrite(&numb, sizeof(double), 1, output);
+}
+void print_int(int numb, FILE *output) {
+  fwrite(&numb, sizeof(int), 1, output);
 }
 prim_lor *create_prim_lor(annihilation *new_annihilation) {
   // hit *hit1 = initial_by_best_order(new_annihilation->photon1_path,
@@ -87,6 +90,19 @@ lor *create_lor(prim_lor *primitive_lor) {
   new->transverse_uncert = transverse_uncert;
 
   return new;
+}
+double impact_parameter(vec3d loc1, vec3d loc2, double tof1, double tof2,
+                        vec3d true_center) {
+  vec3d c = vec_sub(loc1, loc2);
+  vec3d geometric_center = vec_add(loc2, vec_scale(c, 0.5));
+  // printf("geometic center: \n");
+  // vec_print(geometric_center, stdout);
+  // printf("\n");
+  vec3d c_hat = vec_norm(c);
+  double delta_t = -(tof1 - tof2);
+  vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
+  vec3d estimated_loc = vec_add(geometric_center, displacement_from_center);
+  return vec_mag(vec_rejection(vec_sub(estimated_loc, true_center), c));
 }
 
 double linear_interpolation(double nums[COLS], double min, double max,
@@ -320,9 +336,9 @@ int debug_path(photon_path *path) {
     print_double(path->events->detector_id, debug[1]);
   // figure out which cut the photon got to, format is: if (not cut n) cut=n-1
   int cut;
-  if (path->events->detector_id == -1)
+  if (path->num_hits == 0)
     cut = 1;
-  else if (path->num_hits == 0)
+  else if (path->events->detector_id == -1)
     cut = 2;
   else if (path->hits->source != path->events)
     cut = 3;
@@ -343,11 +359,34 @@ int debug_annihilation(annihilation *new_annihilation) {
   int cut2 = debug_path(new_annihilation->photon2_path);
   int cut = MIN(cut1, cut2);
   dual_cuts[cut]++;
+
+  if (debug_options[4] && cut >= 1) {
+    for (int i = 0; i < new_annihilation->photon1_path->num_events; i++) {
+      for (int j = 0; j < new_annihilation->photon2_path->num_events; j++) {
+        vec3d true_center = new_annihilation->center;
+        vec3d loc1 = new_annihilation->photon1_path->events[i].location;
+        vec3d loc2 = new_annihilation->photon2_path->events[j].location;
+        double tof1 = new_annihilation->photon1_path->events[i].tof;
+        double tof2 = new_annihilation->photon2_path->events[j].tof;
+        print_int(i, debug[4]);
+        print_int(j, debug[4]);
+        print_double(impact_parameter(loc1, loc2, tof1, tof2, true_center),
+                     debug[4]);
+      }
+    }
+  }
   return cut;
 }
 void debug_lor(lor *new_lor, vec3d truecenter) {
   if (debug_options[2]) {
-    print_double(vec_dist(new_lor->center, truecenter), debug[2]);
+    print_double(vec_mag(vec_rejection(vec_sub(new_lor->center, truecenter),
+                                       new_lor->dir)),
+                 debug[2]);
+  }
+  if (debug_options[3]) {
+    print_double(vec_mag(vec_projection(vec_sub(new_lor->center, truecenter),
+                                        new_lor->dir)),
+                 debug[3]);
   }
 }
 int main(int argc, char **argv) {
@@ -364,7 +403,9 @@ int main(int argc, char **argv) {
       printf("-e#: run with debug option #\n");
       printf("\t0: histogram of detector vs number of scatters\n");
       printf("\t1: histogram of detector vs number of first scatters\n");
-      printf("\t2: lor reconstruction error to real center\n");
+      printf("\t2: lor reconstruction error to real center (transverse)\n");
+      printf("\t3: lor reconstruction error to real center (longitudinal)\n");
+      printf("\t4: Henry Plot (errors truth study)\n");
       exit(0);
     } else if (strcmp(flags[i], "-d") == 0) {
       printf("running in debug mode, won't write to a lor file\n");
@@ -421,7 +462,7 @@ int main(int argc, char **argv) {
   annihilation *new_annihilation = read_annihilation(phsp_file);
   while (new_annihilation != NULL) {
     // be careful with short circuit evaluation, debug should always run
-    if (debug_annihilation(new_annihilation) >= 3) {
+    if (debug_annihilation(new_annihilation) >= 2) {
       prim_lor *primitive_lor = create_prim_lor(new_annihilation);
       lor *new_lor = create_lor(primitive_lor);
       if (writing_to_lor)
@@ -440,23 +481,19 @@ int main(int argc, char **argv) {
   }
   printf("total annihilations: %u\n", dual_cuts[0]);
   printf("total scatters: %u\n", num_scatters);
-  printf("scatters detected: %u\n", num_hits);
+  printf("total hits: %u\n\n", num_hits);
   printf(
       "(DUAL)CUT 'N': 'num' 'percent passing' 'cumulative percent passing'\n");
-  printf("\n");
-  for (int i = 1; i < NUM_CUTS; i++) {
+  for (int i = 1; i < NUM_CUTS; i++)
     printf("%u: %s\n", i, cut_descriptions[i]);
-  }
   printf("\n");
-  for (int i = 1; i < NUM_CUTS; i++) {
+  for (int i = 1; i < NUM_CUTS; i++)
     printf("CUT %u: %u %lf %lf\n", i, cuts[i], (double)cuts[i] / cuts[i - 1],
            (double)cuts[i] / cuts[0]);
-  }
   printf("\n");
-  for (int i = 1; i < NUM_CUTS; i++) {
+  for (int i = 1; i < NUM_CUTS; i++)
     printf("DUALCUT %u: %u %lf %lf\n", i, dual_cuts[i],
            (double)dual_cuts[i] / dual_cuts[i - 1],
            (double)dual_cuts[i] / dual_cuts[0]);
-  }
   return 0;
 }

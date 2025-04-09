@@ -127,26 +127,23 @@ void print_perm(perm *permutation) {
 histogram *new_histogram(double min, double max, int num_bars) {
   histogram *hist = (histogram *)malloc(sizeof(histogram));
   hist->num_bars = num_bars;
-  hist->counts = (int *)calloc(num_bars, sizeof(int));
+  hist->counts = (uint *)calloc(num_bars, sizeof(uint));
   hist->min = min;
   hist->max = max;
+  hist->count = 0;
   return hist;
 }
 void add_to_histogram(double value, histogram *hist) {
-  if (value < hist->min || value >= hist->max) {
-    return;
-  }
-  hist->counts[(int)(hist->num_bars * (value - hist->min) /
-                     (hist->max - hist->min))]++;
+  if (value >= hist->min && value < hist->max)
+    hist->counts[(int)(hist->num_bars * (value - hist->min) /
+                       (hist->max - hist->min))]++;
+  hist->count++;
 }
 void print_histogram(histogram *hist) {
-  int total = 0;
   double increment = (hist->max - hist->min) / hist->num_bars;
   for (int i = 0; i < hist->num_bars; i++) {
-    total += hist->counts[i];
-  }
-  for (int i = 0; i < hist->num_bars; i++) {
     printf("%lf-%lf: %lf\n", hist->min + i * increment,
-           hist->min + (i + 1) * increment, ((double)hist->counts[i]) / total);
+           hist->min + (i + 1) * increment,
+           ((double)hist->counts[i]) / hist->count);
   }
 }

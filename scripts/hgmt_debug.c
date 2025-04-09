@@ -7,12 +7,11 @@
 #include <string.h>
 
 // including custom files
-#include "compton_chain_ordering.h"
-#include "helper_functions.h"
-#include "hgmt_structs.h"
-#include "llist.h"
-#include "vector_ops.h"
-uint num_datas;
+#include "../src/compton_chain_ordering.h"
+#include "../src/helper_functions.h"
+#include "../src/hgmt_structs.h"
+#include "../src/llist.h"
+#include "../src/vector_ops.h"
 FILE *debug_out;
 void print_data(double data, FILE *output) {
   fwrite(&data, sizeof(double), 1, output);
@@ -126,13 +125,12 @@ void hist_debug(FILE *input, float max_value, int num_bins) {
   bool worked = fread(&num, sizeof(double), 1, input);
   double tot = 0;
   while (worked == 1) {
-    num_datas++;
     tot += num;
     add_to_histogram(num, hist);
     worked = fread(&num, sizeof(double), 1, input);
   }
-  printf("number of data points: %i\n", num_datas);
-  printf("average: %lf\n", (double)tot / num_datas);
+  printf("number of data points: %i\n", hist->count);
+  printf("average: %lf\n", (double)tot / hist->count);
   print_histogram(hist);
 }
 event *read_history(int event_id, FILE *source) {

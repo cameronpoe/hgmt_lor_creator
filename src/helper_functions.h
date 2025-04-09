@@ -1,5 +1,6 @@
 #ifndef helper_functions_h
 #define helper_functions_h
+typedef unsigned int uint;
 
 #include <stdio.h>
 
@@ -23,10 +24,11 @@ void free_perm(perm *permutation);
 void increment_perm(perm *permutation);
 void print_perm(perm *permutation);
 typedef struct histogram_ {
-  int *counts;
-  int num_bars;
+  uint *counts;
+  uint num_bars;
   double min;
   double max;
+  uint count;
 } histogram;
 histogram *new_histogram(double min, double max, int num_bars);
 void add_to_histogram(double value, histogram *hist);

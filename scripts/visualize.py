@@ -12,9 +12,7 @@ vispy.app.use_app("pyqt6")
 # Parameters
 detector_length = 200  # cm
 detector_thickness = 2.54  # cm
-detector_inner_radii = np.array([45] * 5) + 5 * np.array(range(5))  # MUST BE SORTED
-detector_volume_inner_rad = 45  # cm
-detector_volume_outer_rad = 75  # cm
+detector_inner_radii = np.array([45] * 12) + 5 * np.array(range(12))  # MUST BE SORTED
 argument = 0
 
 if len(sys.argv) > 1:
@@ -235,7 +233,7 @@ for inner_radius in detector_inner_radii:
     draw_tube(inner_radius, inner_radius + detector_thickness, detector_length, 30)
 draw_cylinder(10.6, 4, 30)
 origin, locs1, locs2, energies1, energies2, detected1, detected2 = read_file(
-    "data/visualization.data"
+    "../data/visualization.data"
 )
 draw_annihilation(locs1, energies1, detected1, locs2, energies2, detected2, origin)
 text = ""
