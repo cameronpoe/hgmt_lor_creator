@@ -321,17 +321,15 @@ int debug_path(photon_path *path) {
     return 0;
   }
   bool *detected = calloc(path->num_events, sizeof(bool));
-  for (int i = 0; i < path->num_hits; i++) {
-    int index = path->hits[i].source - path->events;
-    detected[index] = 1;
-  }
+  for (int i = 0; i < path->num_hits; i++)
+    detected[path->hits[i].source - path->events] = 1;
   // getting all the important statistics
   num_scatters += path->num_events;
   num_hits += path->num_hits;
-  if (debug_options[0]) {
+  if (debug_options[0])
     for (int j = 0; j < path->num_events; j++)
       print_double(path->events[j].detector_id, debug[0]);
-  }
+
   if (debug_options[1])
     print_double(path->events->detector_id, debug[1]);
   // figure out which cut the photon got to, format is: if (not cut n) cut=n-1

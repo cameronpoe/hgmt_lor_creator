@@ -3,39 +3,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 import datetime as dt
 import sys
-
-
-def add_data(my_dict, value, key):
-    if key in my_dict:
-        my_dict[key].append(value)
-    else:
-        my_dict[key] = [value]
+from collections import defaultdict
 
 
 def read_labeled_doubles_from_binary_file(filename, labelints):
-    doubles = {}
+    # Use defaultdict for automatic list initialization
+    doubles = defaultdict(list)
+
+    # Calculate format strings upfront
+    int_format = f"{labelints}i"
+    double_format = "d"
+    record_size = struct.calcsize(int_format) + struct.calcsize(double_format)
+
     with open(filename, "rb") as f:
         while True:
-            breaking = False
-            ints = []
-            for i in range(labelints):
-                dat = f.read(4)
-                if not dat:
-                    breaking = True
-                    break
-                ints.append(struct.unpack("i", dat))
-            if breaking:
-                break
-            ints = tuple(ints)
-            data = f.read(8)  # 8 bytes for a double
-            if not data:
-                break
-            add_data(doubles, struct.unpack("d", data), ints)
+            # Read entire record at once for better I/O performance
+            data = f.read(record_size)
+            if len(data) < record_size:
+                break  # Incomplete record at end of file
+
+            # Unpack all values in one operation
+            ints = struct.unpack(int_format, data[: struct.calcsize(int_format)])
+            value = struct.unpack(double_format, data[struct.calcsize(int_format) :])[0]
+
+            # Append to defaultdict (no need for separate add_data function)
+            doubles[ints].append(value)
+
     return doubles
 
 
 def plot_histogram(doubles, key):
-    print("we have " + str(len(doubles)) + " data points")
     counts, bin_edges = np.histogram(doubles, bins=100, range=(0, 1))
     # Compute bin centers
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
@@ -46,7 +43,6 @@ def plot_histogram(doubles, key):
     normalized /= len(doubles)
     # Plot histogram as line graph using matplotlib
     str_key = "-".join(str(num) for num in key)
-    print(str_key)
     plt.plot(bin_centers, normalized, label=str_key)
 
 
@@ -76,7 +72,7 @@ plt.text(
 plt.gcf().canvas.get_default_filename = lambda: sys.argv[3]
 for item in top_items:
     plot_histogram(item[1], item[0])
-plt.savefig("full_diagnostics/" + sys.argv[3])
+plt.savefig("../plots/" + sys.argv[3])
 plt.legend()
 font = {"family": "normal", "weight": "bold", "size": 22}
 

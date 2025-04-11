@@ -44,7 +44,7 @@ def plot_histogram(doubles, xlabel, save_name, xmax, ymax):
     )
     plt.gcf().canvas.get_default_filename = lambda: save_name
     plt.plot(bin_centers, normalized)
-    plt.savefig("full_diagnostics/" + save_name)
+    plt.savefig("../plots/" + save_name)
     plt.show()
 
 

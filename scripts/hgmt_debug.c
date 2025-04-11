@@ -23,9 +23,6 @@ double get_phi(double cosX, double cosY, vec3d location) {
   int sign_of_gamma = -1;
   double rad_to_deg = 180.0 / PI;
 
-  double phi;
-  double theta;
-
   // dir is the momentum unit vector of the gamma; has to check that the square
   // root is not imaginary (happens with floats)
   double operand = 1.0 - (alpha * alpha) + (beta * beta);
@@ -40,7 +37,8 @@ double get_phi(double cosX, double cosY, vec3d location) {
   normal = vec_norm(normal);
 
   // uses vector ops to find the angle between various vectors
-  phi = vec_angle(three_vec(0, 0, 1), vec_rejection(dir, normal)) * rad_to_deg;
+  double phi =
+      vec_angle(three_vec(0, 0, 1), vec_rejection(dir, normal)) * rad_to_deg;
   return phi;
 }
 int write_incidence_angle(FILE *source) {
@@ -48,7 +46,6 @@ int write_incidence_angle(FILE *source) {
   float cosX;
   float cosY;
   float energy;
-  int type;
   int worked = 0;
   int particle_id;
   float x;
