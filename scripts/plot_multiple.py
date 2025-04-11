@@ -7,33 +7,22 @@ from collections import defaultdict
 
 
 def read_labeled_doubles_from_binary_file(filename, labelints):
-    # Use defaultdict for automatic list initialization
-    doubles = defaultdict(list)
-
-    # Calculate format strings upfront
-    int_format = f"{labelints}i"
-    double_format = "d"
-    record_size = struct.calcsize(int_format) + struct.calcsize(double_format)
+    record_format = f"{labelints}id"
 
     with open(filename, "rb") as f:
-        while True:
-            # Read entire record at once for better I/O performance
-            data = f.read(record_size)
-            if len(data) < record_size:
-                break  # Incomplete record at end of file
+        data = f.read()
 
-            # Unpack all values in one operation
-            ints = struct.unpack(int_format, data[: struct.calcsize(int_format)])
-            value = struct.unpack(double_format, data[struct.calcsize(int_format) :])[0]
-
-            # Append to defaultdict (no need for separate add_data function)
-            doubles[ints].append(value)
+    doubles = defaultdict(list)
+    for record in struct.iter_unpack(record_format, data):
+        ints = record[:-1]  # First N values are label integers
+        value = record[-1]  # Last value is the double
+        doubles[ints].append(value)
 
     return doubles
 
 
-def plot_histogram(doubles, key):
-    counts, bin_edges = np.histogram(doubles, bins=100, range=(0, 1))
+def plot_histogram(doubles, key, xmax):
+    counts, bin_edges = np.histogram(doubles, bins=100, range=(0, xmax))
     # Compute bin centers
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     bin_widths = bin_edges[1:] - bin_edges[:-1]
@@ -71,11 +60,11 @@ plt.text(
 )
 plt.gcf().canvas.get_default_filename = lambda: sys.argv[3]
 for item in top_items:
-    plot_histogram(item[1], item[0])
-plt.savefig("../plots/" + sys.argv[3])
+    plot_histogram(item[1], item[0], float(sys.argv[4]))
 plt.legend()
 font = {"family": "normal", "weight": "bold", "size": 22}
 
 plt.rc("font", **font)
+plt.savefig("../plots/" + sys.argv[3])
 plt.show()
 print("done!")

@@ -358,7 +358,7 @@ int debug_annihilation(annihilation *new_annihilation) {
   int cut = MIN(cut1, cut2);
   dual_cuts[cut]++;
 
-  if (debug_options[4] && cut >= 1) {
+  if (debug_options[4] && cut >= 1)
     for (int i = 0; i < new_annihilation->photon1_path->num_events; i++) {
       for (int j = 0; j < new_annihilation->photon2_path->num_events; j++) {
         vec3d true_center = new_annihilation->center;
@@ -366,13 +366,12 @@ int debug_annihilation(annihilation *new_annihilation) {
         vec3d loc2 = new_annihilation->photon2_path->events[j].location;
         double tof1 = new_annihilation->photon1_path->events[i].tof;
         double tof2 = new_annihilation->photon2_path->events[j].tof;
-        print_int(i, debug[4]);
-        print_int(j, debug[4]);
+        print_int(i + 1, debug[4]);
+        print_int(j + 1, debug[4]);
         print_double(impact_parameter(loc1, loc2, tof1, tof2, true_center),
                      debug[4]);
       }
     }
-  }
   return cut;
 }
 void debug_lor(lor *new_lor, vec3d truecenter) {

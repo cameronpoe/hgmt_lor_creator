@@ -6,20 +6,13 @@ import sys
 
 
 def read_doubles_from_binary_file(filename):
-    doubles = []
     with open(filename, "rb") as f:
-        while True:
-            data = f.read(8)  # 8 bytes for a double
-            if not data:
-                break
-            doubles.append(struct.unpack("d", data))  # '<d' for little-endian double
-    return doubles
+        data = f.read()
+    return [d[0] for d in struct.iter_unpack("d", data)]
 
 
-def plot_histogram(doubles, xlabel, save_name, xmax, ymax):
-    print("we have " + str(len(doubles)) + " data points")
-    num_bins = 1000
-    counts, bin_edges = np.histogram(doubles, bins=num_bins)
+def plot_histogram(doubles, xmax):
+    counts, bin_edges = np.histogram(doubles, bins=100, range=(0, xmax))
     # Compute bin centers
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     bin_widths = bin_edges[1:] - bin_edges[:-1]
@@ -28,24 +21,7 @@ def plot_histogram(doubles, xlabel, save_name, xmax, ymax):
     normalized = counts / bin_widths
     normalized /= len(doubles)
     # Plot histogram as line graph using matplotlib
-    plt.xlabel(xlabel)
-    plt.ylabel("Frequency")
-    plt.xlim(0, xmax)
-    plt.ylim(0, ymax)
-    current_date = dt.datetime.now().strftime("%Y-%m-%d")
-    plt.text(
-        0.98,
-        0.98,
-        f"{current_date}",
-        transform=plt.gca().transAxes,
-        fontsize=10,
-        verticalalignment="top",
-        horizontalalignment="right",
-    )
-    plt.gcf().canvas.get_default_filename = lambda: save_name
     plt.plot(bin_centers, normalized)
-    plt.savefig("../plots/" + save_name)
-    plt.show()
 
 
 # replace 'file.bin' with your binary file
@@ -56,7 +32,25 @@ if len(sys.argv) != 6:
     )
     sys.exit()
 doubles = read_doubles_from_binary_file(sys.argv[1])
-plot_histogram(
-    doubles, sys.argv[2], sys.argv[3], float(sys.argv[4]), float(sys.argv[5])
+plt.xlabel(sys.argv[2])
+plt.ylabel("Frequency")
+plt.xlim(0, float(sys.argv[4]))
+plt.ylim(0, float(sys.argv[5]))
+current_date = dt.datetime.now().strftime("%Y-%m-%d")
+plt.text(
+    0.98,
+    0.98,
+    f"{current_date}",
+    transform=plt.gca().transAxes,
+    fontsize=10,
+    verticalalignment="top",
+    horizontalalignment="right",
 )
+plt.gcf().canvas.get_default_filename = lambda: sys.argv[3]
+plot_histogram(doubles, float(sys.argv[4]))
+font = {"family": "normal", "weight": "bold", "size": 22}
+
+plt.rc("font", **font)
+plt.savefig("../plots/" + sys.argv[3])
+plt.show()
 print("done!")
