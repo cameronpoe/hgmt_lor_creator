@@ -12,7 +12,7 @@ def read_doubles_from_binary_file(filename):
 
 
 def plot_histogram(doubles, xmax):
-    counts, bin_edges = np.histogram(doubles, bins=100, range=(0, xmax))
+    counts, bin_edges = np.histogram(doubles, bins=50, range=(0, xmax))
     # Compute bin centers
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     bin_widths = bin_edges[1:] - bin_edges[:-1]

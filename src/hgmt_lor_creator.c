@@ -299,12 +299,11 @@ void print_path(photon_path *path) {
     int index = path->hits[i].source - path->events;
     detected[index] = 1;
   }
-  for (int i = 0; i < path->num_events; i++) {
+  for (int i = 0; i < path->num_events; i++)
     // format: x,y,z, energy deposit, detected
     fprintf(visualization, "%lf %lf %lf %lf %d \n", path->events[i].location.x,
             path->events[i].location.y, path->events[i].location.z,
             path->events[i].energy_deposit, detected[i] ? 1 : 0);
-  }
 }
 void print_annihilation(annihilation *new_annihilation) {
   fprintf(visualization, "%lf %lf %lf \n\n", new_annihilation->center.x,
@@ -320,9 +319,6 @@ int debug_path(photon_path *path) {
     cuts[0]++;
     return 0;
   }
-  bool *detected = calloc(path->num_events, sizeof(bool));
-  for (int i = 0; i < path->num_hits; i++)
-    detected[path->hits[i].source - path->events] = 1;
   // getting all the important statistics
   num_scatters += path->num_events;
   num_hits += path->num_hits;
@@ -343,7 +339,6 @@ int debug_path(photon_path *path) {
   else
     cut = 4;
   cuts[cut]++;
-  free(detected);
   return cut;
 }
 int debug_annihilation(annihilation *new_annihilation) {
@@ -359,7 +354,7 @@ int debug_annihilation(annihilation *new_annihilation) {
   dual_cuts[cut]++;
 
   if (debug_options[4] && cut >= 1)
-    for (int i = 0; i < new_annihilation->photon1_path->num_events; i++) {
+    for (int i = 0; i < new_annihilation->photon1_path->num_events; i++)
       for (int j = 0; j < new_annihilation->photon2_path->num_events; j++) {
         vec3d true_center = new_annihilation->center;
         vec3d loc1 = new_annihilation->photon1_path->events[i].location;
@@ -371,7 +366,6 @@ int debug_annihilation(annihilation *new_annihilation) {
         print_double(impact_parameter(loc1, loc2, tof1, tof2, true_center),
                      debug[4]);
       }
-    }
   return cut;
 }
 void debug_lor(lor *new_lor, vec3d truecenter) {
@@ -393,7 +387,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_flags(argc, argv); i++) {
     if (strcmp(flags[i], "-h") == 0) {
       printf("Usage: ./hgmt_lor_creator [TOPAS_file_location.phsp] "
-             "[efficiency_table_location.csv] [LOR_output_location]\n");
+             "[efficiency_table_location.csv] [output_directory]\n");
       printf("-h: print this help\n");
       printf("-d: run in debug mode, do not write to lor file\n");
       printf("-v#: visualize # events\n");
@@ -419,7 +413,7 @@ int main(int argc, char **argv) {
   }
 
   // checks to make sure you have correct number of args
-  if (num_args(argc, argv) != 3 - !writing_to_lor) {
+  if (num_args(argc, argv) != 3) {
     printf("Incorrect number of arguments, three arguments required.\n");
     printf("Use the -h command to get options.\n\n");
     exit(1);
@@ -435,16 +429,16 @@ int main(int argc, char **argv) {
   // opens up a .lor file to output each LOR into
   FILE *lor_output = NULL;
   if (writing_to_lor) {
-    printf("Unable to open output file for writing1\n");
+    printf("Unable to open output file for writing\n");
     char *lor_file_loc;
-    asprintf(&lor_file_loc, "data/%s.lor", args[2]);
+    asprintf(&lor_file_loc, "%sHGMTDerenzo.lor", args[2]);
     lor_output = fopen(lor_file_loc, "wb");
     free(lor_file_loc);
   }
   for (int i = 0; i < NUM_DEBUG_OPTIONS; i++) {
     if (debug_options[i]) {
       char *filename;
-      asprintf(&filename, "data/debug%d.data", i);
+      asprintf(&filename, "%sdebug%d.data", args[2], i);
       debug[i] = fopen(filename, "wb");
       free(filename);
     }
