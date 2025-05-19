@@ -4,9 +4,7 @@
 #include <stdio.h>
 
 typedef struct vec3_double {
-  double x;
-  double y;
-  double z;
+  double x, y, z;
 } vec3d;
 
 // defines a new 3-vector

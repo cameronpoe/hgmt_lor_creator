@@ -12,6 +12,7 @@ def read_doubles_from_binary_file(filename):
 
 
 def plot_histogram(doubles, xmax):
+    print("plotting histogram with " + str(len(doubles)) + " data points")
     counts, bin_edges = np.histogram(doubles, bins=50, range=(0, xmax))
     # Compute bin centers
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
@@ -53,4 +54,3 @@ font = {"family": "normal", "weight": "bold", "size": 22}
 plt.rc("font", **font)
 plt.savefig("../plots/" + sys.argv[3])
 plt.show()
-print("done!")

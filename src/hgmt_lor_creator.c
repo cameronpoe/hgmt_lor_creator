@@ -26,6 +26,7 @@ double detector_locations[12] = {45, 50, 55, 60, 65, 70,
 char *cut_descriptions[] = {"occured", "interected with something", "detected",
                             "wasn't inpatient", "first scatter detected"};
 uint cuts[NUM_CUTS] = {0};
+int array[2][NUM_DEBUG_OPTIONS];
 // dual cuts are the same but require both to happen in an annihilation
 uint dual_cuts[NUM_CUTS] = {0};
 uint num_scatters = 0;
@@ -63,18 +64,9 @@ prim_lor *create_prim_lor(annihilation *new_annihilation) {
 lor *create_lor(prim_lor *primitive_lor) {
 
   vec3d a = primitive_lor->hit1->location;
-  // printf("create_lor: a: \n");
-  // vec_print(a, stdout);
-  // printf("\n");
-  // printf("b: \n");
   vec3d b = primitive_lor->hit2->location;
-  // vec_print(b, stdout);
-  // printf("\n");
   vec3d c = vec_sub(a, b);
   vec3d geometric_center = vec_add(b, vec_scale(c, 0.5));
-  // printf("geometic center: \n");
-  // vec_print(geometric_center, stdout);
-  // printf("\n");
   vec3d c_hat = vec_norm(c);
   double delta_t = -(primitive_lor->hit1->tof - primitive_lor->hit2->tof);
   vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
@@ -95,11 +87,8 @@ double impact_parameter(vec3d loc1, vec3d loc2, double tof1, double tof2,
                         vec3d true_center) {
   vec3d c = vec_sub(loc1, loc2);
   vec3d geometric_center = vec_add(loc2, vec_scale(c, 0.5));
-  // printf("geometic center: \n");
-  // vec_print(geometric_center, stdout);
-  // printf("\n");
   vec3d c_hat = vec_norm(c);
-  double delta_t = -(tof1 - tof2);
+  double delta_t = tof2 - tof1;
   vec3d displacement_from_center = vec_scale(c_hat, SPD_LGHT * delta_t * 0.5);
   vec3d estimated_loc = vec_add(geometric_center, displacement_from_center);
   return vec_mag(vec_rejection(vec_sub(estimated_loc, true_center), c));
@@ -144,6 +133,7 @@ event *read_event(FILE *source) {
   float tof;
   int parent_id;
   int track_id;
+  int particle_type;
   int worked = 0;
 
   worked += fread(&event_id, sizeof(uint), 1, source);
@@ -157,8 +147,9 @@ event *read_event(FILE *source) {
   worked += fread(&tof, sizeof(float), 1, source);
   worked += fread(&parent_id, sizeof(int), 1, source);
   worked += fread(&track_id, sizeof(int), 1, source);
+  worked += fread(&particle_type, sizeof(int), 1, source);
 
-  if (worked != 8) {
+  if (worked != 9) {
     return NULL;
   }
 
@@ -172,6 +163,16 @@ event *read_event(FILE *source) {
   new_event->parent_id = parent_id;
   new_event->track_id = track_id;
   new_event->detector_id = get_detector(new_event->location);
+  new_event->particle_type = particle_type;
+  return new_event;
+}
+event *filter_event(FILE *source, int parent_id) {
+  event *new_event = read_event(source);
+  if (new_event != NULL && new_event->particle_type == -11 &&
+      new_event->parent_id != parent_id) {
+    free(new_event);
+    return filter_event(source, parent_id);
+  }
   return new_event;
 }
 
@@ -219,15 +220,17 @@ photon_path *read_photon_path(FILE *source) {
   photon_path *photon = (photon_path *)malloc(sizeof(photon_path));
   photon->num_events = 0;
   photon->num_hits = 0;
-  event *new_event = first_event;
+  int event_id = first_event->event_id;
+  int parent_id = first_event->track_id;
+  free(first_event);
+  first_event = filter_event(source, parent_id);
   // constructing list of events
-  while (new_event != NULL && first_event->event_id == new_event->event_id &&
-         first_event->parent_id == new_event->parent_id) {
-    path_perfect = add_to_top(path_perfect, new_event);
+  while (first_event != NULL && first_event->event_id == event_id &&
+         first_event->parent_id == parent_id) {
+    path_perfect = add_to_top(path_perfect, first_event);
     photon->num_events++;
-    new_event = read_event(source);
+    first_event = filter_event(source, parent_id);
   }
-  first_event = new_event;
   photon->events = (event *)malloc(sizeof(event) * photon->num_events);
   for (int i = 0; i < photon->num_events; i++) {
     photon->events[i] = *path_perfect->data;
@@ -353,7 +356,9 @@ int debug_annihilation(annihilation *new_annihilation) {
   int cut = MIN(cut1, cut2);
   dual_cuts[cut]++;
 
-  if (debug_options[4] && cut >= 1)
+  if (debug_options[4] && cut >= 1) {
+    array[0][cut1]++;
+    array[1][cut2]++;
     for (int i = 0; i < new_annihilation->photon1_path->num_events; i++)
       for (int j = 0; j < new_annihilation->photon2_path->num_events; j++) {
         vec3d true_center = new_annihilation->center;
@@ -366,6 +371,7 @@ int debug_annihilation(annihilation *new_annihilation) {
         print_double(impact_parameter(loc1, loc2, tof1, tof2, true_center),
                      debug[4]);
       }
+  }
   return cut;
 }
 void debug_lor(lor *new_lor, vec3d truecenter) {
@@ -405,7 +411,6 @@ int main(int argc, char **argv) {
       uint debug_option;
       sscanf(flags[i], "-e%u", &debug_option);
       debug_options[debug_option] = true;
-      printf("running with debug option: %u\n", debug_option); // Output: 42
     } else if (strncmp(flags[i], "-v", 2) == 0) {
       sscanf(flags[i], "-v%u", &vis_events);
       printf("outputting data to visualize %u events\n", vis_events);
@@ -418,7 +423,17 @@ int main(int argc, char **argv) {
     printf("Use the -h command to get options.\n\n");
     exit(1);
   }
-
+  // opens files for debug output
+  printf("running with debug options:"); // Output: 42
+  for (int i = 0; i < NUM_DEBUG_OPTIONS; i++)
+    if (debug_options[i]) {
+      printf(" %i", i);
+      char *filename;
+      asprintf(&filename, "%sdebug%d.data", args[2], i);
+      debug[i] = fopen(filename, "wb");
+      free(filename);
+    }
+  printf("\n");
   // reads in efficiency table into 2D array called eff_by_ang
   printf("HGMT LOR Creator\n\nLoading in '%s' as efficiencies table...\n",
          args[1]);
@@ -435,16 +450,12 @@ int main(int argc, char **argv) {
     lor_output = fopen(lor_file_loc, "wb");
     free(lor_file_loc);
   }
-  for (int i = 0; i < NUM_DEBUG_OPTIONS; i++) {
-    if (debug_options[i]) {
-      char *filename;
-      asprintf(&filename, "%sdebug%d.data", args[2], i);
-      debug[i] = fopen(filename, "wb");
-      free(filename);
-    }
+  if (vis_events) {
+    char *filename;
+    asprintf(&filename, "%svisualization.data", args[2]);
+    visualization = fopen(filename, "w");
+    free(filename);
   }
-  if (vis_events)
-    visualization = fopen("data/visualization.data", "w");
   FILE *phsp_file = fopen(args[0], "rb");
   printf("Loading in '%s' as the phsp file...\n", args[0]);
 
@@ -452,7 +463,6 @@ int main(int argc, char **argv) {
   first_event = read_event(phsp_file);
   annihilation *new_annihilation = read_annihilation(phsp_file);
   while (new_annihilation != NULL) {
-    // be careful with short circuit evaluation, debug should always run
     if (debug_annihilation(new_annihilation) >= 2) {
       prim_lor *primitive_lor = create_prim_lor(new_annihilation);
       lor *new_lor = create_lor(primitive_lor);
@@ -486,5 +496,14 @@ int main(int argc, char **argv) {
     printf("DUALCUT %u: %u %lf %lf\n", i, dual_cuts[i],
            (double)dual_cuts[i] / dual_cuts[i - 1],
            (double)dual_cuts[i] / dual_cuts[0]);
+  printf("\nThe 2D array is:\n");
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < NUM_DEBUG_OPTIONS; j++) {
+      printf("%u ", array[i][j]);
+    }
+    printf("\n"); // Move to the next row
+  }
+  printf("%f \n", (double)array[0][2] / (array[0][2] + array[0][1]));
+  printf("%f \n", (double)array[1][2] / (array[1][2] + array[1][1]));
   return 0;
 }

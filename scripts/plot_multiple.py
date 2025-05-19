@@ -22,6 +22,8 @@ def read_labeled_doubles_from_binary_file(filename, labelints):
 
 
 def plot_histogram(doubles, key, xmax):
+    str_key = "-".join(str(num) for num in key)
+    print("plotting " + str_key + " with " + str(len(doubles)) + " data points")
     counts, bin_edges = np.histogram(doubles, bins=50, range=(0, xmax))
     # Compute bin centers
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
@@ -31,7 +33,6 @@ def plot_histogram(doubles, key, xmax):
     normalized = counts / bin_widths
     normalized /= len(doubles)
     # Plot histogram as line graph using matplotlib
-    str_key = "-".join(str(num) for num in key)
     plt.plot(bin_centers, normalized, label=str_key)
 
 
@@ -67,4 +68,3 @@ font = {"family": "normal", "weight": "bold", "size": 22}
 plt.rc("font", **font)
 plt.savefig("../plots/" + sys.argv[3])
 plt.show()
-print("done!")

@@ -129,8 +129,8 @@ d:Ge/Detector_11/MinStepSize 	= 0.01 mm
 includeFile = ./derenzo_300keV_100.topas
 
 s:Ge/Derenzo/Parent = "AirBox"
-background_e = 10 #30
-rod_e = 30 #00090
+background_e = 0 #30
+rod_e = 1 #00090
 
 
 
@@ -151,14 +151,14 @@ b:Ge/AirBox/Invisible	= "true"
 
 i:Ts/Seed = 26
 
-s:Sc/HGMTDerenzo/Quantity			= "HGMTNTuple"
+s:Sc/HGMTDerenzo/Quantity			= "AnnihilScorer"
 s:Sc/HGMTDerenzo/Component			= "AirBox"
 b:Sc/HGMTDerenzo/PropagateToChildren	= "True"
 s:Sc/HGMTDerenzo/OutputType			= "binary"
 s:Sc/HGMTDerenzo/IfOutputFileAlreadyExists	= "Overwrite"
 
 s:Gr/ViewA/Type           = "OpenGL"
-sv:Gr/ViewA/VisibleWorlds = 1 "All"
+sv:Gr/Vi1ewA/VisibleWorlds = 1 "All"
 i:Gr/ViewA/WindowSizeX    = 900
 i:Gr/ViewA/WindowSizeY    = 900
 d:Gr/ViewA/Theta          = 45 deg

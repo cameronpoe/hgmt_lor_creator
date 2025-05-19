@@ -217,7 +217,8 @@ def draw_path(points, detected, pathid, energies):
     for i in range(1, len(points)):
         draw_sphere(points[i], Color("green" if detected[i] else "grey"))
         label(points[i], pathid + str(i))
-        print(pathid + str(i) + ": " + str(energies[i - 1]))
+        new_pathid = pathid.upper() if detected[i] else pathid
+        print(new_pathid + str(i) + ": " + str(energies[i - 1]))
     view.add(path)
 
 
