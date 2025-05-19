@@ -91,7 +91,7 @@ b:Ge/AirBox/Invisible	= "true"
 
 i:Ts/Seed = 26
 
-s:Sc/HGMTDerenzo/Quantity			= "HGMTNTuple"
+s:Sc/HGMTDerenzo/Quantity			= "AnnihilScorer"
 s:Sc/HGMTDerenzo/Component			= "AirBox"
 b:Sc/HGMTDerenzo/PropagateToChildren	= "True"
 s:Sc/HGMTDerenzo/OutputType			= "binary"

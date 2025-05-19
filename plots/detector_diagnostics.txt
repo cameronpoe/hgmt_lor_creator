@@ -1,0 +1,33 @@
+running in debug mode, won't write to a lor file
+running with debug options: 0 1 2 3 4
+HGMT LOR Creator
+
+Loading in '../data/kapton_effs.csv' as efficiencies table...
+Loading in '../data/HGMTDerenzo' as the phsp file...
+Constructing the hits...
+
+total annihilations: 13353810
+total scatters: 225338861
+total hits: 57261111
+
+(DUAL)CUT 'N': 'num' 'percent passing' 'cumulative percent passing'
+1: interected with something
+2: detected
+3: wasn't inpatient
+4: first scatter detected
+
+CUT 1: 25011135 0.936479 0.936479
+CUT 2: 21734240 0.868983 0.813784
+CUT 3: 13136449 0.604413 0.491861
+CUT 4: 6829231 0.519869 0.255703
+
+DUALCUT 1: 12058211 0.902979 0.902979
+DUALCUT 2: 9227332 0.765232 0.690989
+DUALCUT 3: 3295741 0.357172 0.246802
+DUALCUT 4: 888388 0.269556 0.066527
+
+The 2D array is:
+0 1513960 4081343 3109700 3353208 
+0 1510835 4088295 3103694 3355387 
+0.729423 
+0.730166 

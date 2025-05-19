@@ -51,4 +51,5 @@ vec3d vec_projection(vec3d a, vec3d b);
 vec3d vec_rejection(vec3d a, vec3d b);
 double radial_dist(vec3d a);
 vec3d radial_scale(vec3d a, double b);
+void print_vec(vec3d vec);
 #endif

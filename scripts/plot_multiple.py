@@ -2,6 +2,7 @@ import struct
 import matplotlib.pyplot as plt
 import numpy as np
 import datetime as dt
+import heapq
 import sys
 from collections import defaultdict
 
@@ -24,14 +25,14 @@ def read_labeled_doubles_from_binary_file(filename, labelints):
 def plot_histogram(doubles, key, xmax):
     str_key = "-".join(str(num) for num in key)
     print("plotting " + str_key + " with " + str(len(doubles)) + " data points")
-    counts, bin_edges = np.histogram(doubles, bins=50, range=(0, xmax))
+    doubles_array = np.array(doubles)
+    counts, bin_edges = np.histogram(doubles_array, bins=50, range=(0, xmax))
     # Compute bin centers
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     bin_widths = bin_edges[1:] - bin_edges[:-1]
     # normalize the data
-    normalized = [float(counts[i]) / bin_widths[i] for i in range(len(counts))]
-    normalized = counts / bin_widths
-    normalized /= len(doubles)
+    normalized = counts.astype(float) / bin_widths
+    normalized /= len(doubles_array)
     # Plot histogram as line graph using matplotlib
     plt.plot(bin_centers, normalized, label=str_key)
 
@@ -44,7 +45,7 @@ if len(sys.argv) != 6:
     )
     sys.exit()
 doubles = read_labeled_doubles_from_binary_file(sys.argv[1], 2)
-top_items = sorted(doubles.items(), key=lambda item: len(item[1]), reverse=True)[:10]
+top_items = heapq.nlargest(10, doubles.keys(), key=lambda k: len(doubles[k]))
 plt.xlabel(sys.argv[2])
 plt.ylabel("Frequency")
 plt.xlim(0, float(sys.argv[4]))
@@ -61,7 +62,7 @@ plt.text(
 )
 plt.gcf().canvas.get_default_filename = lambda: sys.argv[3]
 for item in top_items:
-    plot_histogram(item[1], item[0], float(sys.argv[4]))
+    plot_histogram(doubles[item], item, float(sys.argv[4]))
 plt.legend()
 font = {"family": "normal", "weight": "bold", "size": 22}
 

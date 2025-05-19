@@ -64,19 +64,19 @@ double time_FOM_cum(hit *hits, int *order, int num_hits) {
 double chi_square_FOM(hit *hits, int *order, int num_hits) {
   double FOM = 0;
   double E_i = 511; // KeV
-  for (int i = 0; i < num_hits - 1; i++) {
-    vec3d hit0 = hits[order[i]].location;
-    vec3d hit1 = hits[order[i]].location;
-    vec3d hit2 = hits[order[i + 1]].location;
-    vec3d a = vec_sub(hit1, hit0);
-    vec3d b = vec_sub(hit2, hit1);
-    double cos_theta = vec_dot(a, b) / (vec_mag(a) * vec_mag(b));
-    double E_f = E_i / (1 + (E_i / 511)(1 - cos_theta));
-    double E_dep = E_f - E_i;
-    FOM += log(linear_interpolation(eff_by_energy, E_min, E_max,
-                                    single_event->energy_deposit));
-    E_i = E_f;
-  }
+  // for (int i = 0; i < num_hits - 1; i++) {
+  //   vec3d hit0 = hits[order[i]].location;
+  //   vec3d hit1 = hits[order[i]].location;
+  //   vec3d hit2 = hits[order[i + 1]].location;
+  //   vec3d a = vec_sub(hit1, hit0);
+  //   vec3d b = vec_sub(hit2, hit1);
+  //   double cos_theta = vec_dot(a, b) / (vec_mag(a) * vec_mag(b));
+  //   double E_f = E_i / (1 + (E_i / 511)(1 - cos_theta));
+  //   double E_dep = E_f - E_i;
+  //   FOM += log(linear_interpolation(eff_by_energy, E_min, E_max,
+  //                                   single_event->energy_deposit));
+  //   E_i = E_f;
+  // }
   return -FOM;
 }
 double time_FOM(hit *hits, int *order, int num_hits) {

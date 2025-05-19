@@ -125,3 +125,4 @@ double radial_dist(vec3d a) { return vec_mag(three_vec(a.x, a.y, 0.0)); }
 vec3d radial_scale(vec3d a, double b) {
   return three_vec(a.x * b, a.y * b, a.z);
 }
+void print_vec(vec3d vec) { printf("%f %f %f\n", vec.x, vec.y, vec.z); }
